@@ -1,4 +1,6 @@
 from logger import logger
+from shared.protocol import ResponseType
+
 
 class MessageHandler:
     def __init__(self) -> None:
@@ -33,7 +35,7 @@ class MessageHandler:
         return self.generate_response(18, "Hello from the server".encode())
 
     def handle_unknown_type(self, content: bytes) -> bytes:
-        return self.generate_response(0)
+        return self.generate_response(ResponseType.UNKNOWN_REQUEST_TYPE)
 
     
     @staticmethod

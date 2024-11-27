@@ -1,6 +1,7 @@
 import time
 import socket
 from logger import logger
+from shared.protocol import RequestType
 
 class ConnectionClosed(Exception):
     pass
@@ -35,7 +36,7 @@ def main():
                 message_bytes = message.encode()
                 message_length = len(message_bytes) + 1
                 message_length_bytes = message_length.to_bytes(2, 'big')
-                data_to_send = message_length_bytes + bytes([2]) + message_bytes
+                data_to_send = message_length_bytes + bytes([RequestType.CONNECT]) + message_bytes
                 logger.info(f"Sending message: {data_to_send}")
                 client_socket.sendall(data_to_send)
                 logger.info(f"Message sent")

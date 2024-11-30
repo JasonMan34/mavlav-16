@@ -2,6 +2,7 @@ import selectors
 import socket
 from message_handler import MessageHandler
 from logger import logger
+from protocol import RequestType
 
 class ConnectionClosed(Exception):
   pass
@@ -13,7 +14,7 @@ class SocketManager:
         self.message_handler = MessageHandler()  # Initialize MessageHandler instance
 
     def register_client(self, conn: socket.socket, addr: str) -> None:
-        data = {'addr': addr}
+        data = {'addr': addr, 'allowed_requests': [RequestType.CONNECT]}
         self.clients[conn] = data
         self.selector.register(conn, selectors.EVENT_READ, data)
         logger.debug(f"SocketManager - Registered client {addr}")

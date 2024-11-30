@@ -1,5 +1,5 @@
 from logger import logger
-from shared.protocol import ResponseType
+from protocol import ResponseType
 
 
 class MessageHandler:

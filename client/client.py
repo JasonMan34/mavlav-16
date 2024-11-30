@@ -1,7 +1,7 @@
 import time
 import socket
 from logger import logger
-from shared.protocol import RequestType
+from protocol import RequestType
 
 class ConnectionClosed(Exception):
     pass
@@ -23,6 +23,7 @@ PORT = 18927
 
 def main():
     # Create a socket and connect to the server
+    
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         try:
             client_socket.connect((HOST, PORT))

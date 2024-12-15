@@ -2,7 +2,9 @@ import random
 from logger import logger
 from protocol import RequestType, ResponseType
 from client_state import ClientState
-from db import is_client_signed_up, registered_clients
+from db import is_client_registered, registered_clients
+from cryptography.hazmat.primitives import serialization
+import db
 
 
 class MessageHandler:
@@ -24,13 +26,13 @@ class MessageHandler:
         if request_type == RequestType.SIGN_UP:
             response = self.handle_sign_up(phone_number=data.decode(), state=state)
         if request_type == RequestType.SIGN_UP_CONFIRM:
-            digits, public_key = data[:6].decode(), data[6:]
-            response = self.handle_sign_up_confirm(digits=digits, public_key=public_key, state=state)
+            digits, public_key_bytes = data[:6].decode(), data[6:]
+            response = self.handle_sign_up_confirm(digits=digits, public_key_bytes=public_key_bytes, state=state)
 
         return response
 
     def handle_sign_up(self, phone_number: str, state: ClientState) -> bytes:
-        if is_client_signed_up(phone_number):
+        if is_client_registered(phone_number):
             return self.generate_response(ResponseType.PHONE_NUMBER_ALREADY_REGISTERED)
 
         state.phone_number = phone_number
@@ -38,15 +40,23 @@ class MessageHandler:
         state.allowed_requests = [RequestType.SIGN_UP_CONFIRM]
         return self.generate_response(ResponseType.SIGN_UP_STARTED)
 
-    def handle_sign_up_confirm(self, digits: str, public_key: bytes, state: ClientState) -> bytes:
+    def handle_sign_up_confirm(self, digits: str, public_key_bytes: bytes, state: ClientState) -> bytes:
         if state.phone_number is None:
             raise Exception("Phone number is not set, but handle_sign_up_confirm was called")
-        elif is_client_signed_up(state.phone_number):
+        elif is_client_registered(state.phone_number):
             return self.generate_response(ResponseType.PHONE_NUMBER_ALREADY_REGISTERED)
         elif state.digits is None:
             raise Exception("Digits are not set, but handle_sign_up_confirm was called")
         elif state.digits != digits:
             return self.generate_response(ResponseType.SIGN_UP_WRONG_DIGITS)
+        
+        
+        try:
+            public_key = serialization.load_pem_public_key(data=public_key_bytes)
+            db.register_client(state.phone_number, public_key)
+        except Exception as e:
+            logger.warning(f"Invalid public key received from client {state.addr}: {e}")
+            return self.generate_response(ResponseType.INVALID_INPUT)
         
         state.digits = None
         state.public_key = public_key

@@ -2,6 +2,7 @@ import socket
 from client_data import client_data
 from logger import logger
 from protocol import RequestType, ResponseType
+from cryptography.hazmat.primitives import serialization
 
 class ConnectionClosed(Exception):
     pass
@@ -66,14 +67,13 @@ def sign_up(conn: socket.socket) -> None:
     print(f"[PHONE] Confirmation code received from super secure server: {confirmation_code_received}")
     print(f"-- The program will now continue --\n")
     confirmation_code = input("Please Enter the confirmation code: ").strip()
-    public_key = b"MyPublicKeyExample"  # Replace with an actual public key.
-    confirmation_data = confirmation_code.encode() + public_key
+    confirmation_data = confirmation_code.encode() + client_data.public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
     send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
     response_type, response_data = receive_response(conn)
 
     if response_type == ResponseType.SIGN_UP_SUCCESS:
+        client_data.is_signed_up = True
         logger.info("Sign-up successful!")
-        
     elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS:
         logger.error(f"Wrong confirmation code entered. Exiting. {response_type.name}")
     else:
@@ -87,8 +87,12 @@ def main():
             client_socket.connect((HOST, PORT))
             logger.info(f"Connected to server at {HOST}:{PORT}")
 
-
-            sign_up(client_socket)
+            if client_data.is_signed_up:
+                logger.info("Signing in...")
+                # TODO: JASON - Work on sign in function
+            else:
+                logger.info("Signing up...")
+                sign_up(client_socket)
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:
@@ -96,6 +100,7 @@ def main():
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}")
         finally:
+            client_data.save_data()
             logger.info("Connection closed.")
 
 if __name__ == "__main__":

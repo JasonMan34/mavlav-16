@@ -21,7 +21,25 @@ def get_pem(ec_public_key: EllipticCurvePublicKey) -> bytes:
 def create_shared_secret(our_private_key: EllipticCurvePrivateKey, their_public_key: EllipticCurvePublicKey) -> bytes: 
     return our_private_key.exchange(ec.ECDH(), their_public_key) 
 
+def wrap_aes_key_with_derived_key(aes_key: bytes, derived_key: bytes) -> bytes: 
+    cipher = Cipher(algorithms.AES(derived_key), modes.ECB()) 
+    encryptor = cipher.encryptor() 
+    return encryptor.update(aes_key) + encryptor.finalize() 
 
+def unwrap_aes_key_with_derived_key(aes_key: bytes, derived_key: bytes) -> bytes: 
+    cipher = Cipher(algorithms.AES(derived_key), modes.ECB()) 
+    decryptor = cipher.decryptor() 
+    return decryptor.update(aes_key) + decryptor.finalize() 
+
+def do_kdf(shared_secret: bytes) -> bytes: 
+    salt = b'stam'
+    kdf = PBKDF2HMAC( 
+        algorithm=hashes.SHA256(), 
+        length=32, 
+        salt=salt, 
+        iterations=1000000, 
+    ) 
+    return kdf.derive(shared_secret) 
 # POC
 
 my_pub, my_priv = generate_ec_keypair()
@@ -31,3 +49,5 @@ your_pub, your_priv = generate_ec_keypair()
 #should be the same
 print(b64encode(create_shared_secret(my_priv, your_pub)).decode())
 print(b64encode(create_shared_secret(your_priv, my_pub)).decode())
+print(create_shared_secret(my_priv, your_pub))
+print(do_kdf(create_shared_secret(my_priv, your_pub)))

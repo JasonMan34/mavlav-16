@@ -5,10 +5,14 @@ from logger import logger
 from protocol import RequestType, ResponseType
 from client_state import ClientState
 
+# Secure!
+def SendBySecureChannel(conn: socket.socket, data: bytes) -> None:
+    conn.sendall(data)
+
 class ConnectionClosed(Exception):
     pass
 
-class InvalidMessageType(Exception):
+class InvalidRequestType(Exception):
     pass
 
 class SocketManager:
@@ -23,13 +27,12 @@ class SocketManager:
         self.selector.register(conn, selectors.EVENT_READ, data)
         logger.debug(f"SocketManager - Registered client {addr}")
 
-    def receive_message_type(self, conn: socket.socket):
-        raw_message_type = int.from_bytes(conn.recv(1), 'big')
+    def receive_request_type(self, conn: socket.socket):
+        raw_request_type = int.from_bytes(conn.recv(1), 'big')
         try:
-            message_type = RequestType(raw_message_type)
-            return message_type
+            return RequestType(raw_request_type)
         except ValueError:
-            raise InvalidMessageType(raw_message_type)
+            raise InvalidRequestType(raw_request_type)
 
     def handle_client(self, key: selectors.SelectorKey, mask: int) -> None:
         conn: socket.socket = key.fileobj
@@ -38,16 +41,16 @@ class SocketManager:
         try:
             if mask & selectors.EVENT_READ:
                 logger.debug(f"SocketManager - Received data from {state.addr}")
-                message_type = self.receive_message_type(conn)
-                logger.debug(f"SocketManager - Message type from {state.addr} is {message_type}")
+                request_type = self.receive_request_type(conn)
+                logger.debug(f"SocketManager - Request type from {state.addr} is {request_type}")
 
-                if message_type == RequestType.CONNECTION_CLOSED:
+                if request_type == RequestType.CONNECTION_CLOSED:
                     logger.info(f"Connection from {state.addr} was closed by the client")
                     self.unregister_client(conn)
                     return
 
-                if message_type not in state.allowed_requests:
-                    logger.warning(f"SocketManager - Received disallowed message type {message_type} from {state.addr}")
+                if request_type not in state.allowed_requests:
+                    logger.warning(f"SocketManager - Received disallowed request type {request_type} from {state.addr}")
                     response = self.message_handler.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
                     conn.sendall(response)
                     return
@@ -57,17 +60,18 @@ class SocketManager:
                 received_data = self.recv_exact(conn, message_length)
                 logger.debug(f"SocketManager - Received full message from {state.addr}")
 
-                response = self.message_handler.handle_message(message_type, received_data, state)
-                logger.debug(f"SocketManager - Handled message from {state.addr}")
+                response = self.message_handler.handle_message(request_type, received_data, state)
+                logger.debug(f"SocketManager - Handled message {request_type} from {state.addr}")
                 conn.sendall(response)
-                logger.info(f"SocketManager - Sent response to {state.addr}")
+                response_type = ResponseType(int.from_bytes(response[:1], 'big'))
+                logger.info(f"SocketManager - Sent response {response_type.name} to {state.addr}")
                 
                 # Special use case, this code should be sent from some 3rd party service, but we're just gonna pretend and use
                 # the same socket as a "secure channel", so we must do it from outside message_handler
-                if message_type == RequestType.SIGN_UP and state.digits is not None:
-                    conn.sendall(state.digits.encode())
-        except InvalidMessageType as e:
-            logger.warning(f"Received invalid message type from {state.addr}: {e}. Allowed requests are: {state.allowed_requests}")
+                if request_type == RequestType.SIGN_UP and state.digits is not None:
+                    SendBySecureChannel(conn, state.digits.encode())
+        except InvalidRequestType as e:
+            logger.warning(f"Received invalid request type from {state.addr}: {e}. Allowed requests are: {state.allowed_requests}")
             response = self.message_handler.generate_response(ResponseType.UNKNOWN_REQUEST_TYPE)
             conn.sendall(response)
         except ConnectionClosed as e:

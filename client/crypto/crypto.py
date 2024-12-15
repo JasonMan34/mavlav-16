@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 from base64 import *
 
-def generate_ec_keypair() -> list: 
+def generate_ec_keypair() -> tuple[EllipticCurvePublicKey, EllipticCurvePrivateKey]: 
     private_key = ec.generate_private_key(ec.SECP256R1()) 
     public_key = private_key.public_key() 
     return [public_key, private_key]
@@ -46,8 +46,10 @@ my_pub, my_priv = generate_ec_keypair()
 your_pub, your_priv = generate_ec_keypair()
 
 
-#should be the same
-print(b64encode(create_shared_secret(my_priv, your_pub)).decode())
-print(b64encode(create_shared_secret(your_priv, my_pub)).decode())
-print(create_shared_secret(my_priv, your_pub))
-print(do_kdf(create_shared_secret(my_priv, your_pub)))
+# Test code :)
+if __name__ == "__main__":
+    # should be the same
+    print(b64encode(create_shared_secret(my_priv, your_pub)).decode())
+    print(b64encode(create_shared_secret(your_priv, my_pub)).decode())
+    print(create_shared_secret(my_priv, your_pub))
+    print(do_kdf(create_shared_secret(my_priv, your_pub)))

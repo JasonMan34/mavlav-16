@@ -18,7 +18,7 @@ class MessageHandler:
         :param state: The state of the client 
         :return: The response message to send back to the client.
         """
-        logger.info(f"Received message {request_type} from {state.addr}")
+        logger.info(f"Received request {request_type.name} from {state.addr}")
 
         # Handle the message based on the message type.
         if request_type == RequestType.SIGN_UP:

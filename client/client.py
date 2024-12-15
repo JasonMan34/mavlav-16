@@ -1,4 +1,5 @@
 import socket
+from client_data import client_data
 from logger import logger
 from protocol import RequestType, ResponseType
 
@@ -19,29 +20,6 @@ def recv_exact(conn: socket.socket, size: int) -> bytes:
 
 HOST = '127.0.0.1'
 PORT = 18927
-
-def read_phone_number():
-    try:
-        with open("phone_number.txt", "r") as file:
-            phone_number = file.read().strip()
-            if not phone_number:
-                logger.error("Phone number in the file is empty.")
-                exit(1)
-            if len(phone_number) != 10:
-                logger.error("Phone number should be 10 digits long.")
-                exit(1)
-            
-            return phone_number
-    except FileNotFoundError:
-        logger.error("phone_number.txt file not found.")
-        exit(1)
-        return
-    except Exception as e:
-        logger.error(f"An error occurred while reading the phone number file: {e}")
-        exit(1)
-        return
-
-phone_number = read_phone_number()
 
 def send_request(client_socket: socket.socket, request_type: RequestType, data: bytes) -> None:
     """
@@ -69,7 +47,7 @@ def receive_response(client_socket: socket.socket):
 
 def sign_up(conn: socket.socket) -> None:
     # Send SIGN_UP request
-    send_request(conn, RequestType.SIGN_UP, phone_number.encode())
+    send_request(conn, RequestType.SIGN_UP, client_data.phone_number.encode())
     response_type, response_data = receive_response(conn)
 
     if response_type == ResponseType.PHONE_NUMBER_ALREADY_REGISTERED.value:
@@ -78,14 +56,18 @@ def sign_up(conn: socket.socket) -> None:
     elif response_type == ResponseType.SIGN_UP_STARTED:
         logger.info("Sign-up process started. Waiting for confirmation code.")
     else:
-        logger.error(f"Unexpected response from server: {ResponseType(response_type).name}")
+        logger.error(f"Unexpected response from server: {response_type.name}")
         exit(1)
 
     # Handle confirmation
-    confirmation_code = recv_exact(conn, 6).decode().strip()
+    confirmation_code_received = recv_exact(conn, 6).decode().strip()
+    print(f"\n-- We interrupt this program to give you breaking news, straight from your phone! --")
+    print(f"[PHONE] You have 1 new SMS message on your mobile device!")
+    print(f"[PHONE] Confirmation code received from super secure server: {confirmation_code_received}")
+    print(f"-- The program will now continue --\n")
+    confirmation_code = input("Please Enter the confirmation code: ").strip()
     public_key = b"MyPublicKeyExample"  # Replace with an actual public key.
     confirmation_data = confirmation_code.encode() + public_key
-    logger.info(f"Sending SIGN_UP_CONFIRM request.")
     send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
     response_type, response_data = receive_response(conn)
 
@@ -93,9 +75,9 @@ def sign_up(conn: socket.socket) -> None:
         logger.info("Sign-up successful!")
         
     elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS:
-        logger.error("Wrong confirmation code entered. Exiting.")
+        logger.error(f"Wrong confirmation code entered. Exiting. {response_type.name}")
     else:
-        logger.error(f"Unexpected response from server: {ResponseType(response_type).name}")
+        logger.error(f"Unexpected response from server: {response_type.name}")
         return
 
 def main():
@@ -105,13 +87,14 @@ def main():
             client_socket.connect((HOST, PORT))
             logger.info(f"Connected to server at {HOST}:{PORT}")
 
+
             sign_up(client_socket)
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:
             logger.info("\nClient shutting down.")
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"An unexpected error occurred: {e}")
         finally:
             logger.info("Connection closed.")
 

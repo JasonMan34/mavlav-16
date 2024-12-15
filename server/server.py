@@ -33,7 +33,7 @@ def main() -> None:
         except KeyboardInterrupt:
             logger.info("\nSIGINT - Server shutting down.")
         except Exception as e:
-            logger.error(f"Unexpected error, shutting down. {e}")
+            logger.error(f"Unexpected error, shutting down.", e, exc_info=True)
 
 if __name__ == "__main__":
     logger.debug("Main function called")

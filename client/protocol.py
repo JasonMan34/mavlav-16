@@ -2,6 +2,7 @@ import enum
 
 
 class RequestType(enum.Enum):
+    CONNECTION_CLOSED = 0
     SIGN_UP = 1
     SIGN_UP_CONFIRM = 2
     SIGN_IN = 3

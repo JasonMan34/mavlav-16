@@ -89,13 +89,15 @@ def sign_up(conn: socket.socket) -> None:
     send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
     response_type, response_data = receive_response(conn)
 
-    if response_type == ResponseType.SIGN_UP_SUCCESS.value:
+    if response_type == ResponseType.SIGN_UP_SUCCESS:
         logger.info("Sign-up successful!")
-    elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS.value:
+        
+    elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS:
         logger.error("Wrong confirmation code entered. Exiting.")
     else:
         logger.error(f"Unexpected response from server: {ResponseType(response_type).name}")
         return
+
 def main():
     # Create a socket and connect to the server
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -104,27 +106,6 @@ def main():
             logger.info(f"Connected to server at {HOST}:{PORT}")
 
             sign_up(client_socket)
-
-
-            # while True:
-            #     message = input("Enter message to send (or 'quit' to exit): ")
-            #     if message.lower() == 'quit':
-            #         break
-
-            #     message_bytes = message.encode()
-            #     message_length = len(message_bytes) + 1
-            #     message_length_bytes = message_length.to_bytes(2, 'big')
-            #     data_to_send = message_length_bytes + bytes([RequestType.CONNECT]) + message_bytes
-            #     logger.info(f"Sending message: {data_to_send}")
-            #     client_socket.sendall(data_to_send)
-            #     logger.info(f"Message sent")
-
-            #     # Receive the response from the server
-            #     response_length = int.from_bytes(client_socket.recv(2), 'big')
-            #     logger.info(f"Received response length: {response_length}")
-            #     response_data = recv_exact(client_socket, response_length)
-            #     response = response_data.decode()
-            #     logger.info(f"Server response: {response}")
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:

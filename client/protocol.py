@@ -1,10 +1,8 @@
 class RequestType:
-    CONNECT = 1
-    DISCONNECT = 2
-    MESSAGE = 3
+    REGISTER = 420
+    OTP = 421
+    SEND_PUBLIC_KEY = 442
 
-
-# 0-127: Good
-# 128-255: Bad
-class ResponseType:
-    UNKNOWN_REQUEST_TYPE = 128
+#They are all good
+# class ResponseType:
+    

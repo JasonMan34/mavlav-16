@@ -17,7 +17,7 @@ def get_pem(ec_public_key: EllipticCurvePublicKey) -> bytes:
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
-
+#for symmetric key
 def create_shared_secret(our_private_key: EllipticCurvePrivateKey, their_public_key: EllipticCurvePublicKey) -> bytes: 
     return our_private_key.exchange(ec.ECDH(), their_public_key) 
 

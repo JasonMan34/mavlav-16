@@ -46,6 +46,13 @@ def receive_response(client_socket: socket.socket):
     response_data = recv_exact(client_socket, response_length)
     return response_type, response_data
 
+def listen_for_incoming_messages(client_socket: socket.socket, recieved: bool = False):
+    if not recieved:
+        response_type, response_data = receive_response(client_socket=client_socket)
+        if response_type != ResponseType.MSG_FOR_YOU:
+            print("oops. that is not msg incoming. should be handled later (by Jason)")
+            exit(1)
+
 def sign_up(conn: socket.socket) -> None:
     # Send SIGN_UP request
     send_request(conn, RequestType.SIGN_UP, client_data.phone_number.encode())
@@ -94,13 +101,12 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
         client_data.contacts[recipient_phone] = shared_secret
     shared_secret = client_data.contacts[recipient_phone]    
     print(f"Successfully created/loaded a shared secret: {shared_secret}")
-    aes_key = create_AES_key()
-    print(f"Successfully created AES key {aes_key['key']}")
-    encrypted_aes_key = aes_ecb_encrypt(aes_key["key"], shared_secret)
-    print("Successfully encrypted the aes key with shared secret")
+    aes_key, iv = create_AES_key()
+    print(f"Successfully created AES key {aes_key}")
+    encrypted_aes_key = aes_ecb_encrypt(aes_key, shared_secret)
+    print(f"Successfully encrypted the aes key with shared secret with length {encrypted_aes_key}")
     decrypted_aes_key = aes_ecb_decrypt(encrypted_aes_key, shared_secret)
     print(f"Successfully decrypted aes key: {decrypted_aes_key}")
-
         
 def main():
     # Create a socket and connect to the server
@@ -116,14 +122,14 @@ def main():
                 sign_up(client_socket)
                 request = input("Would you like to send a new message? Y/n")
                 while request.lower() != "n":
-                    recipient_phone = input("Enter recipient's phone:\t")
+                    recipient_phone = input("Enter recipient's phone: ")
                     if len(recipient_phone) != 10 or not recipient_phone.isdigit():
                         print("Invalid phone number")
                     else:
-                        message = input("Enter your message:\t")     
+                        message = input("Enter your message: ")     
                         send_msg(client_socket, recipient_phone, message) 
                     request = input("Would you like to send a new message? Y/n")
-    
+
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:

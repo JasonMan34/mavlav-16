@@ -1,7 +1,5 @@
 import os
 import pickle
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
 from crypto import generate_ec_keypair
 from logger import logger
 
@@ -38,10 +36,8 @@ class ClientData:
                     self.phone_number = data.get('phone_number')
                     self.is_signed_up = data.get('is_signed_up', False)
                     
-                    if data.get('private_key') is not None:
-                        self.private_key = serialization.load_pem_private_key(data=data.get('private_key'), password=None)
-                    if data.get('public_key') is not None:
-                        self.public_key = serialization.load_pem_public_key(data=data.get('public_key'))
+                    self.private_key = data.get('private_key')
+                    self.public_key = data.get('public_key')
                     
                     if self.phone_number is None or self.is_signed_up is None:
                         logger.warning("client.data file is corrupted, creating new client data.")
@@ -76,15 +72,8 @@ class ClientData:
                 data = {
                     'phone_number': self.phone_number,
                     'is_signed_up': self.is_signed_up,
-                    'private_key': self.private_key.private_bytes(
-                        encoding=serialization.Encoding.PEM,
-                        format=serialization.PrivateFormat.TraditionalOpenSSL,
-                        encryption_algorithm=serialization.NoEncryption()
-                    ) if self.private_key is not None else None,
-                    'public_key': self.public_key.public_bytes(
-                        encoding=serialization.Encoding.PEM,
-                        format=serialization.PublicFormat.SubjectPublicKeyInfo
-                    ) if self.public_key is not None else None
+                    'private_key': self.private_key,
+                    'public_key': self.public_key
                 }
                 # Serialize and save the data
                 pickle.dump(data, file)

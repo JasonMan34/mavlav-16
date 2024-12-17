@@ -2,7 +2,7 @@ import socket
 from client_data import client_data
 from logger import logger
 from protocol import RequestType, ResponseType
-from cryptography.hazmat.primitives import serialization
+from crypto import create_shared_secret
 
 class ConnectionClosed(Exception):
     pass
@@ -67,7 +67,7 @@ def sign_up(conn: socket.socket) -> None:
     print(f"[PHONE] Confirmation code received from super secure server: {confirmation_code_received}")
     print(f"-- The program will now continue --\n")
     confirmation_code = input("Please Enter the confirmation code: ").strip()
-    confirmation_data = confirmation_code.encode() + client_data.public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+    confirmation_data = confirmation_code.encode() + client_data.public_key
     send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
     response_type, response_data = receive_response(conn)
 
@@ -89,8 +89,11 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
         print(response_type, response_data)
         if response_type != ResponseType.SENDING_REQUESTED_PUB_KEY:
             return
-        client_data.contacts[recipient_phone] = response_data #should be client
-
+        public_key = response_data
+        shared_secret = create_shared_secret(client_data.private_key, public_key)
+        client_data.contacts[recipient_phone] = shared_secret
+    shared_secret = client_data.contacts[recipient_phone]    
+    print(f"Successfully created/loaded a shared secret: {shared_secret}")
         
 def main():
     # Create a socket and connect to the server
@@ -113,6 +116,8 @@ def main():
                     else:
                         message = input("Enter your message:\t")     
                         send_msg(client_socket, recipient_phone, message) 
+                    request = input("Would you like to send a new message? Y/n")
+    
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:

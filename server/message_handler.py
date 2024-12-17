@@ -2,10 +2,8 @@ import random
 from logger import logger
 from protocol import RequestType, ResponseType
 from client_state import ClientState
-from db import is_client_registered, registered_clients
-from cryptography.hazmat.primitives import serialization
+from db import is_client_registered, registered_clients, get_public_key
 import db
-
 
 class MessageHandler:
     def __init__(self) -> None:
@@ -23,12 +21,14 @@ class MessageHandler:
         logger.info(f"Received request {request_type.name} from {state.addr}")
 
         # Handle the message based on the message type.
-        if request_type == RequestType.SIGN_UP:
-            response = self.handle_sign_up(phone_number=data.decode(), state=state)
-        if request_type == RequestType.SIGN_UP_CONFIRM:
-            digits, public_key_bytes = data[:6].decode(), data[6:]
-            response = self.handle_sign_up_confirm(digits=digits, public_key_bytes=public_key_bytes, state=state)
-
+        match request_type:
+            case RequestType.SIGN_UP:
+                response = self.handle_sign_up(phone_number=data.decode(), state=state)
+            case RequestType.SIGN_UP_CONFIRM:
+                digits, public_key_bytes = data[:6].decode(), data[6:]
+                response = self.handle_sign_up_confirm(digits=digits, public_key_bytes=public_key_bytes, state=state)
+            case RequestType.INIT_MSGING:
+                response = self.handle_init_messaging(data.decode(), state)
         return response
 
     def handle_sign_up(self, phone_number: str, state: ClientState) -> bytes:
@@ -52,19 +52,29 @@ class MessageHandler:
         
         
         try:
-            public_key = serialization.load_pem_public_key(data=public_key_bytes)
-            db.register_client(state.phone_number, public_key)
+            db.register_client(state.phone_number, public_key_bytes)
+            #add a general check for the validity of public key
         except Exception as e:
             logger.warning(f"Invalid public key received from client {state.addr}: {e}")
             return self.generate_response(ResponseType.INVALID_INPUT)
         
         state.digits = None
-        state.public_key = public_key
-        state.allowed_requests = []
+        state.public_key = public_key_bytes
+
+        #client may send msgs to other clients now
+        state.allowed_requests = [RequestType.INIT_MSGING]
 
         return self.generate_response(ResponseType.SIGN_UP_SUCCESS)
 
-    
+    def handle_init_messaging(self, recipient_phone_number: str, state: ClientState) -> bytes:
+        if not is_client_registered(state.phone_number):
+            return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
+        recipient_public_key = get_public_key(recipient_phone_number)
+        if recipient_public_key:
+            return self.generate_response(ResponseType.SENDING_REQUESTED_PUB_KEY, recipient_public_key)
+        else:
+            return self.generate_response(ResponseType.RECIPIENT_PHONE_NOT_EXIST)
+        
     @staticmethod
     def generate_response(response_type: ResponseType, extra_data: bytes = b"") -> bytes:
         """

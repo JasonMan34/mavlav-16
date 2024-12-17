@@ -48,7 +48,7 @@ class SocketManager:
                     logger.info(f"Connection from {state.addr} was closed by the client")
                     self.unregister_client(conn)
                     return
-
+                print(state.allowed_requests)
                 if request_type not in state.allowed_requests:
                     logger.warning(f"SocketManager - Received disallowed request type {request_type} from {state.addr}")
                     response = self.message_handler.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)

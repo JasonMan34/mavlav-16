@@ -1,0 +1,22 @@
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey 
+from cryptography.hazmat.primitives.asymmetric import ec 
+from cryptography.hazmat.primitives import hashes, padding, serialization
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes 
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from base64 import *
+
+def generate_ec_keypair() -> tuple[EllipticCurvePublicKey, EllipticCurvePrivateKey]: 
+    private_key = ec.generate_private_key(ec.SECP256R1()) 
+    public_key = private_key.public_key() 
+    return [public_key, private_key]
+
+def get_pem(ec_public_key: EllipticCurvePublicKey) -> bytes:
+    return ec_public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+def get_public_key(pem_data: bytes) -> EllipticCurvePublicKey:
+    return load_pem_public_key(pem_data, backend=default_backend())

@@ -101,7 +101,7 @@ def main():
             else:
                 logger.info("Signing up...")
                 sign_up(client_socket)
-            send_msg(client_socket, "1111111111")    
+                send_msg(client_socket, "1111111111")    
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:

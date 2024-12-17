@@ -69,6 +69,7 @@ def aes_ecb_encrypt(data: bytes, aes_key: bytes) -> bytes:
     encryptor = cipher.encryptor() 
     return encryptor.update(padded_message) + encryptor.finalize() 
 
+
 def aes_ecb_decrypt(cipher_text: bytes, aes_key: bytes) -> bytes: 
     cipher = Cipher(algorithms.AES(aes_key), modes.ECB()) 
     decryptor = cipher.decryptor() 
@@ -77,17 +78,7 @@ def aes_ecb_decrypt(cipher_text: bytes, aes_key: bytes) -> bytes:
     plaintext = unpadder.update(padded_message) + unpadder.finalize()
     return plaintext
 
-def do_kdf(shared_secret: bytes) -> bytes: 
-    salt = b'stam'
-    kdf = PBKDF2HMAC( 
-        algorithm=hashes.SHA256(), 
-        length=32, 
-        salt=salt, 
-        iterations=1000000, 
-    ) 
-    return kdf.derive(shared_secret) 
 
-# POC
 
 my_pub, my_priv = generate_ec_keypair()
 your_pub, your_priv = generate_ec_keypair()
@@ -99,4 +90,4 @@ if __name__ == "__main__":
     print(b64encode(create_shared_secret(my_priv, your_pub)).decode())
     print(b64encode(create_shared_secret(your_priv, my_pub)).decode())
     print(create_shared_secret(my_priv, your_pub))
-    print(do_kdf(create_shared_secret(my_priv, your_pub)))
+    print(create_shared_secret(my_priv, your_pub))

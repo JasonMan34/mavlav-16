@@ -42,7 +42,7 @@ class MessageHandler:
             return self.generate_response(ResponseType.PHONE_NUMBER_ALREADY_REGISTERED)
 
         state.phone_number = phone_number
-        state.digits = str(random.randint(0, 999999)).zfill(6)
+        state.digits = str(random.SystemRandom().randint(0, 999999)).zfill(6)
         state.allowed_requests = [RequestType.SIGN_UP_CONFIRM]
         return self.generate_response(ResponseType.SIGN_UP_STARTED)
 
@@ -90,6 +90,7 @@ class MessageHandler:
                 messages[recipient_phone_number][state.phone_number].append(b64encode(msg_to_transmit).decode())
             else:
                 messages[recipient_phone_number][state.phone_number] = [b64encode(msg_to_transmit).decode()]
+        
             return self.generate_response(ResponseType.MSG_TRANSMIT_SUCCESS)   
         
     def handle_recv_msgs(self, state: ClientState):

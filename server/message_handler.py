@@ -90,16 +90,6 @@ class MessageHandler:
                 messages[recipient_phone_number][state.phone_number].append(b64encode(msg_to_transmit).decode())
             else:
                 messages[recipient_phone_number][state.phone_number] = [b64encode(msg_to_transmit).decode()]
-            #Just for testing
-            len_msg = len(msg_to_transmit) - 48 - 16
-            encrypted_aes, iv, msg = struct.unpack(
-                f'>48s16s{len_msg}s', msg_to_transmit
-            )
-            logger.debug(f"Server recieved the following:")
-            print("Encrypted AES: ", encrypted_aes)
-            print("iv", iv)
-            print("Msg", msg)
-            print(messages)
             return self.generate_response(ResponseType.MSG_TRANSMIT_SUCCESS)   
         
     def handle_recv_msgs(self, state: ClientState):

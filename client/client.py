@@ -77,32 +77,42 @@ def sign_up(conn: socket.socket) -> None:
         client_data.is_signed_up = True
         logger.info("Sign-up successful!")
     elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS:
-        logger.error(f"Wrong confirmation code entered. Exiting. {response_type.name}")
+        logger.error(f"Wrong confirmation code entered. Exiting {response_type.name}")
+        exit(1)
     else:
         logger.error(f"Unexpected response from server: {response_type.name}")
         return
+    
+def recieve_public_key(conn: socket.socket, recipient_phone: str):
+    send_request(conn, RequestType.INIT_MSGING, recipient_phone.encode())
+    response_type, response_data = receive_response(conn)
+    if response_type != ResponseType.SENDING_REQUESTED_PUB_KEY:
+        return None
+    logger.info(f"Successfully recieved public key of {recipient_phone}")
+    return response_data
+
+def get_and_create_crypto_utils(conn: socket.socket, recipient_phone: str):
+    public_key = recieve_public_key(conn, recipient_phone)
+    shared_secret = create_shared_secret(client_data.private_key, public_key)
+    logger.info("Successfully created a shared secret")
+    aes_key, iv = create_AES_key()
+    logger.info("Successfully created AES key")
+    client_data.contacts[recipient_phone] = (shared_secret, aes_key, iv)
 
 def send_msg(conn: socket.socket, recipient_phone: str, message: str):
     if recipient_phone in client_data.contacts:
-        print(f"You have the contact {recipient_phone} set and ready for msging!")
+        logger.info(f"You have {recipient_phone} set and ready for msging!")
+
     else:
-        send_request(conn, RequestType.INIT_MSGING, recipient_phone.encode())
-        response_type, response_data = receive_response(conn)
-        print(response_type, response_data)
-        if response_type != ResponseType.SENDING_REQUESTED_PUB_KEY:
-            return
-        public_key = response_data
-        shared_secret = create_shared_secret(client_data.private_key, public_key)
-        client_data.contacts[recipient_phone] = shared_secret
-    shared_secret = client_data.contacts[recipient_phone]    
-    logger.info(f"Successfully created/loaded a shared secret: {shared_secret}")
-    aes_key, iv = create_AES_key()
+        get_and_create_crypto_utils(conn, recipient_phone)
+    
+    shared_secret, aes_key, iv = client_data.contacts[recipient_phone]
+    logger.info("Successfully dumped shared secret, AES key and iv")
     encrypted_aes_key = aes_ecb_encrypt(aes_key, shared_secret)
+    logger.info("Successfully encrypted AES key for transmition (encrypted using shared secret in ECB mode)")
     encrypted_msg = aes_cbc_encrypt(message.encode(), aes_key, iv)
-    logger.debug(f"Client sent the following:")
-    print("Encrypted AES: ", encrypted_aes_key)
-    print("iv", iv)
-    print("Msg", encrypted_msg)
+    logger.info(f"Successfully encrypted message to send to {recipient_phone} (encrypted using AES key in CBC mode)")
+
 
     send_request(conn, RequestType.SEND_MSG, struct.pack(
         f'>10s48s16s{len(encrypted_msg)}s',
@@ -115,8 +125,24 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
 def get_incoming_messages(conn: socket.socket):
     send_request(conn, RequestType.RECV_MSGS, b'')
     response_type, response_data = receive_response(conn)
-    messages = response_data.decode()
-    logger.info(f"You've recieved the following messages: {json.loads(messages)}")
+    messages = json.loads(response_data.decode())
+    if messages:
+        for sender in messages:
+            if sender not in client_data.contacts:
+                get_and_create_crypto_utils(conn, sender)
+
+            shared_secret, aes_key, iv = client_data.contacts[sender]
+            logger.info(f"You've recieved the following messages from {sender}:")
+            for msg in messages[sender]:
+                decoded_msg = b64decode(msg)
+                encrypted_aes, iv, encrypted_msg = struct.unpack(
+                    f'>48s16s{len(decoded_msg)-48-16}s',
+                    decoded_msg
+                )
+                aes_key = aes_ecb_decrypt(encrypted_aes, shared_secret)
+                decrypted_msg = aes_cbc_decrypt(encrypted_msg, aes_key, iv)
+                print(decrypted_msg.decode())
+
         
 def main():
     # Create a socket and connect to the server
@@ -141,7 +167,7 @@ def main():
                             send_msg(client_socket, recipient_phone, message) 
                     else:
                         get_incoming_messages(client_socket)        
-                    request = input("What would you like to do?\n0 - Send message\n1 - Recieve all messages\n2 - Quit").strip()
+                    request = input("What would you like to do?\n0 - Send message\n1 - Recieve all messages\n2 - Quit\n").strip()
 
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")

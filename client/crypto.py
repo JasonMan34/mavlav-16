@@ -38,6 +38,15 @@ def create_shared_secret(our_pem_private_key: bytes, their_pem_public_key: bytes
     return our_private_key.exchange(ec.ECDH(), their_public_key) 
 
 
+def create_AES_key() -> dict:
+    key = os.urandom(32) 
+    iv = os.urandom(16) 
+    return { 
+        "key": key, 
+        "iv": iv
+    } 
+
+
 def aes_cbc_encrypt(data: bytes, key: bytes, iv: bytes) -> bytes: 
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv)) 
     encryptor = cipher.encryptor() 
@@ -47,14 +56,10 @@ def aes_cbc_encrypt(data: bytes, key: bytes, iv: bytes) -> bytes:
     return ciphertext
 
 
-def create_AES_key() -> dict:
-    key = os.urandom(32) 
-    iv = os.urandom(16) 
-    return { 
-        "key": key, 
-        "iv": iv
-    } 
-
+def aes_cbc_decrypt(cipher_text: bytes, aes_key: bytes, iv:bytes) -> bytes: 
+    cipher = Cipher(algorithms.AES(aes_key), modes.CBC()) 
+    decryptor = cipher.decryptor() 
+    return decryptor.update(cipher_text) + decryptor.finalize() 
 
 def aes_ecb_encrypt(data: bytes, aes_key: bytes) -> bytes: 
     cipher = Cipher(algorithms.AES(aes_key), modes.ECB()) 

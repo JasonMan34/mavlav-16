@@ -3,7 +3,6 @@ import pickle
 from crypto import generate_ec_keypair
 from logger import logger
 
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey 
 
 DATA_FILE_PATH = "client.data"
 
@@ -19,13 +18,15 @@ class ClientData:
         if not hasattr(self, '_initialized'):
             self.phone_number = None
             self.is_signed_up = False
-            self.private_key: EllipticCurvePrivateKey | None = None
-            self.public_key: EllipticCurvePublicKey | None = None
+            self.private_key: bytes | None = None
+            self.public_key: bytes | None = None
             self.contacts: dict[str, str]  = {}
             # Try to load existing client data
-            self.load_data()
-            self._initialized = True
-
+            # SKIP for now
+            #self.load_data()
+            #self._initialized = True
+            self.create_new_client()
+            
     def load_data(self):
         """Load the client data from the file if it exists."""
         if os.path.exists(DATA_FILE_PATH):
@@ -62,7 +63,8 @@ class ClientData:
         self.is_signed_up = False
         
         # Save the data to a file
-        self.save_data()
+        # SKIP for now
+        # self.save_data()
     
     def save_data(self):
         """Save the current client data to the file using pickle."""

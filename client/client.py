@@ -95,6 +95,7 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
     shared_secret = client_data.contacts[recipient_phone]    
     print(f"Successfully created/loaded a shared secret: {shared_secret}")
     aes_key = create_AES_key()
+    print(f"Successfully created AES key {aes_key['key']}")
     encrypted_aes_key = aes_ecb_encrypt(aes_key["key"], shared_secret)
     print("Successfully encrypted the aes key with shared secret")
     decrypted_aes_key = aes_ecb_decrypt(encrypted_aes_key, shared_secret)
@@ -107,7 +108,6 @@ def main():
         try:
             client_socket.connect((HOST, PORT))
             logger.info(f"Connected to server at {HOST}:{PORT}")
-
             if client_data.is_signed_up:
                 logger.info("Signing in...")
                 # TODO: JASON - Work on sign in function
@@ -131,7 +131,7 @@ def main():
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}")
         finally:
-            client_data.save_data()
+            #client_data.save_data()
             logger.info("Connection closed.")
 
 if __name__ == "__main__":

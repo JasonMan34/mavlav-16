@@ -6,6 +6,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 from base64 import *
+import os
 
 """
     Generate Assymetric keys pair.
@@ -36,15 +37,36 @@ def create_shared_secret(our_pem_private_key: bytes, their_pem_public_key: bytes
     their_public_key = load_pem_public_key(their_pem_public_key, backend=default_backend())
     return our_private_key.exchange(ec.ECDH(), their_public_key) 
 
-def wrap_aes_key_with_derived_key(aes_key: bytes, derived_key: bytes) -> bytes: 
-    cipher = Cipher(algorithms.AES(derived_key), modes.ECB()) 
-    encryptor = cipher.encryptor() 
-    return encryptor.update(aes_key) + encryptor.finalize() 
 
-def unwrap_aes_key_with_derived_key(aes_key: bytes, derived_key: bytes) -> bytes: 
-    cipher = Cipher(algorithms.AES(derived_key), modes.ECB()) 
+def aes_cbc_encrypt(data: bytes, key: bytes, iv: bytes) -> bytes: 
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv)) 
+    encryptor = cipher.encryptor() 
+    pad = padding.PKCS7(128).padder() 
+    padded_message = pad.update(data) + pad.finalize() 
+    ciphertext = encryptor.update(padded_message) + encryptor.finalize() 
+    return ciphertext
+
+
+def create_AES_key() -> dict:
+    key = os.urandom(32) 
+    iv = os.urandom(16) 
+    return { 
+        "key": key, 
+        "iv": iv
+    } 
+
+
+def aes_ecb_encrypt(data: bytes, aes_key: bytes) -> bytes: 
+    cipher = Cipher(algorithms.AES(aes_key), modes.ECB()) 
+    pad = padding.PKCS7(128).padder() 
+    padded_message = pad.update(data) + pad.finalize()
+    encryptor = cipher.encryptor() 
+    return encryptor.update(padded_message) + encryptor.finalize() 
+
+def aes_ecb_decrypt(cipher_text: bytes, aes_key: bytes) -> bytes: 
+    cipher = Cipher(algorithms.AES(aes_key), modes.ECB()) 
     decryptor = cipher.decryptor() 
-    return decryptor.update(aes_key) + decryptor.finalize() 
+    return decryptor.update(cipher_text) + decryptor.finalize() 
 
 def do_kdf(shared_secret: bytes) -> bytes: 
     salt = b'stam'
@@ -55,6 +77,7 @@ def do_kdf(shared_secret: bytes) -> bytes:
         iterations=1000000, 
     ) 
     return kdf.derive(shared_secret) 
+
 # POC
 
 my_pub, my_priv = generate_ec_keypair()

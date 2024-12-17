@@ -2,7 +2,7 @@ import socket
 from client_data import client_data
 from logger import logger
 from protocol import RequestType, ResponseType
-from crypto import create_shared_secret
+from crypto import *
 
 class ConnectionClosed(Exception):
     pass
@@ -94,6 +94,12 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
         client_data.contacts[recipient_phone] = shared_secret
     shared_secret = client_data.contacts[recipient_phone]    
     print(f"Successfully created/loaded a shared secret: {shared_secret}")
+    aes_key = create_AES_key()
+    encrypted_aes_key = aes_ecb_encrypt(aes_key["key"], shared_secret)
+    print("Successfully encrypted the aes key with shared secret")
+    decrypted_aes_key = aes_ecb_decrypt(encrypted_aes_key, shared_secret)
+    print(f"Successfully decrypted aes key: {decrypted_aes_key}")
+
         
 def main():
     # Create a socket and connect to the server

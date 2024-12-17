@@ -80,6 +80,14 @@ def sign_up(conn: socket.socket) -> None:
         logger.error(f"Unexpected response from server: {response_type.name}")
         return
 
+def send_msg(conn: socket.socket, recipient_phone: str):
+    if recipient_phone in client_data.my_contacts:
+        print(f"You have the contact {recipient_phone} set and ready for msging!")
+    else:
+        send_request(conn, RequestType.INIT_MSGING, recipient_phone.encode())
+        response_type, response_data = receive_response(conn)
+        print(response_type, response_data)
+
 def main():
     # Create a socket and connect to the server
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -93,6 +101,7 @@ def main():
             else:
                 logger.info("Signing up...")
                 sign_up(client_socket)
+            send_msg(client_socket, "1111111111")    
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:

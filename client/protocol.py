@@ -6,6 +6,8 @@ class RequestType(enum.Enum):
     SIGN_UP = 1
     SIGN_UP_CONFIRM = 2
     SIGN_IN = 3
+    INIT_MSGING = 4
+    SEND_MSG = 5
 
 
 # 0-127: Good
@@ -13,7 +15,10 @@ class RequestType(enum.Enum):
 class ResponseType(enum.Enum):
     SIGN_UP_STARTED = 1
     SIGN_UP_SUCCESS = 2
+    SENDING_REQUESTED_PUB_KEY = 3
     REQUEST_TYPE_NOT_ALLOWED = 128
     PHONE_NUMBER_ALREADY_REGISTERED = 129
     SIGN_UP_WRONG_DIGITS = 130
+    RECIPIENT_PHONE_NOT_EXIST = 131
+    INVALID_INPUT = 254
     UNKNOWN_REQUEST_TYPE = 255

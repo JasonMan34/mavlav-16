@@ -2,7 +2,7 @@ import os
 import pickle
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
-from crypto.crypto import generate_ec_keypair
+from crypto import generate_ec_keypair
 from logger import logger
 
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey 
@@ -23,7 +23,7 @@ class ClientData:
             self.is_signed_up = False
             self.private_key: EllipticCurvePrivateKey | None = None
             self.public_key: EllipticCurvePublicKey | None = None
-            
+            self.my_contacts: dict = {}
             # Try to load existing client data
             self.load_data()
             self._initialized = True

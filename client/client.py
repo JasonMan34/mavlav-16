@@ -3,6 +3,8 @@ from client_data import client_data
 from logger import logger
 from protocol import RequestType, ResponseType
 from crypto import *
+import struct
+import json
 
 class ConnectionClosed(Exception):
     pass
@@ -45,13 +47,6 @@ def receive_response(client_socket: socket.socket):
     response_length = int.from_bytes(client_socket.recv(4), 'big')
     response_data = recv_exact(client_socket, response_length)
     return response_type, response_data
-
-def listen_for_incoming_messages(client_socket: socket.socket, recieved: bool = False):
-    if not recieved:
-        response_type, response_data = receive_response(client_socket=client_socket)
-        if response_type != ResponseType.MSG_FOR_YOU:
-            print("oops. that is not msg incoming. should be handled later (by Jason)")
-            exit(1)
 
 def sign_up(conn: socket.socket) -> None:
     # Send SIGN_UP request
@@ -100,13 +95,28 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
         shared_secret = create_shared_secret(client_data.private_key, public_key)
         client_data.contacts[recipient_phone] = shared_secret
     shared_secret = client_data.contacts[recipient_phone]    
-    print(f"Successfully created/loaded a shared secret: {shared_secret}")
+    logger.info(f"Successfully created/loaded a shared secret: {shared_secret}")
     aes_key, iv = create_AES_key()
-    print(f"Successfully created AES key {aes_key}")
     encrypted_aes_key = aes_ecb_encrypt(aes_key, shared_secret)
-    print(f"Successfully encrypted the aes key with shared secret with length {encrypted_aes_key}")
-    decrypted_aes_key = aes_ecb_decrypt(encrypted_aes_key, shared_secret)
-    print(f"Successfully decrypted aes key: {decrypted_aes_key}")
+    encrypted_msg = aes_cbc_encrypt(message.encode(), aes_key, iv)
+    logger.debug(f"Client sent the following:")
+    print("Encrypted AES: ", encrypted_aes_key)
+    print("iv", iv)
+    print("Msg", encrypted_msg)
+
+    send_request(conn, RequestType.SEND_MSG, struct.pack(
+        f'>10s48s16s{len(encrypted_msg)}s',
+        recipient_phone.encode(),
+        encrypted_aes_key,      
+        iv, 
+        encrypted_msg
+    ))
+
+def get_incoming_messages(conn: socket.socket):
+    send_request(conn, RequestType.RECV_MSGS, b'')
+    response_type, response_data = receive_response(conn)
+    messages = response_data.decode()
+    logger.info(f"You've recieved the following messages: {json.loads(messages)}")
         
 def main():
     # Create a socket and connect to the server
@@ -120,15 +130,18 @@ def main():
             else:
                 logger.info("Signing up...")
                 sign_up(client_socket)
-                request = input("Would you like to send a new message? Y/n")
-                while request.lower() != "n":
-                    recipient_phone = input("Enter recipient's phone: ")
-                    if len(recipient_phone) != 10 or not recipient_phone.isdigit():
-                        print("Invalid phone number")
+                request = input("What would you like to do?\n0 - Send message\n1 - Recieve all messages\n2 - Quit\n").strip()
+                while request == "0" or request == "1":
+                    if request == "0":
+                        recipient_phone = input("Enter recipient's phone: ")
+                        if len(recipient_phone) != 10 or not recipient_phone.isdigit():
+                            print("Invalid phone number")
+                        else:
+                            message = input("Enter your message: ")     
+                            send_msg(client_socket, recipient_phone, message) 
                     else:
-                        message = input("Enter your message: ")     
-                        send_msg(client_socket, recipient_phone, message) 
-                    request = input("Would you like to send a new message? Y/n")
+                        get_incoming_messages(client_socket)        
+                    request = input("What would you like to do?\n0 - Send message\n1 - Recieve all messages\n2 - Quit").strip()
 
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")

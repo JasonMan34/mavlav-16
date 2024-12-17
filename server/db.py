@@ -4,12 +4,14 @@ class Client:
         self.public_key = public_key
 
 registered_clients: dict[str, Client] = {}
+messages: dict[str, bytes] = {}
 
 def is_client_registered(phone_number: str) -> bool:
     return phone_number in registered_clients
 
 def register_client(phone_number: str, public_key):
     registered_clients[phone_number] = Client(phone_number, public_key)
+    messages[phone_number] = {}
 
 def get_public_key(phone_number: str):
     recipient = registered_clients.get(phone_number, None)  

@@ -8,7 +8,7 @@ class RequestType(enum.Enum):
     SIGN_IN = 3
     INIT_MSGING = 4
     SEND_MSG = 5
-
+    RECV_MSGS = 6
 
 # 0-127: Good
 # 128-255: Bad
@@ -16,7 +16,8 @@ class ResponseType(enum.Enum):
     SIGN_UP_STARTED = 1
     SIGN_UP_SUCCESS = 2
     SENDING_REQUESTED_PUB_KEY = 3
-    MSG_FOR_YOU = 4
+    MSG_TRANSMIT_SUCCESS = 4
+    SENDING_MSGS = 5
     REQUEST_TYPE_NOT_ALLOWED = 128
     PHONE_NUMBER_ALREADY_REGISTERED = 129
     SIGN_UP_WRONG_DIGITS = 130

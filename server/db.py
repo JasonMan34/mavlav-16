@@ -41,7 +41,7 @@ def register_client(phone_number: str, public_key: bytes):
     registered_clients[phone_number] = Client(phone_number, public_key)
     messages[phone_number] = {}
 
-def get_public_key(phone_number: str):
+def get_public_key_bytes(phone_number: str):
     recipient = registered_clients.get(phone_number, None)
     return recipient.public_key_bytes if recipient else None
 

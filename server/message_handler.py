@@ -119,7 +119,7 @@ class MessageHandler:
         if not state.phone_number or not state.sign_in_challenge:
             return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
 
-        public_key_bytes = get_public_key(state.phone_number)
+        public_key_bytes = get_public_key_bytes(state.phone_number)
         if not public_key_bytes:
             return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
 
@@ -139,9 +139,9 @@ class MessageHandler:
         if not is_client_registered(state.phone_number):
             return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
         
-        recipient_public_key = get_public_key(recipient_phone_number)
-        if recipient_public_key:
-            return self.generate_response(ResponseType.SENDING_REQUESTED_PUB_KEY, recipient_public_key)
+        recipient_public_key_bytes = get_public_key_bytes(recipient_phone_number)
+        if recipient_public_key_bytes:
+            return self.generate_response(ResponseType.SENDING_REQUESTED_PUB_KEY, recipient_public_key_bytes)
         else:
             return self.generate_response(ResponseType.RECIPIENT_PHONE_NOT_EXIST)
 

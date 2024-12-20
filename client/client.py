@@ -213,7 +213,7 @@ def user_action_loop(client_socket: socket.socket):
                     message = input("Enter your message: ")
                     send_msg(client_socket, recipient_phone, message)
 
-                action = get_user_action()
+            action = get_user_action()
         except PhoneDoesNotExist:
             print("That phone number does not exist on the server")
         except BadRequest:

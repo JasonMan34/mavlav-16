@@ -257,7 +257,8 @@ def main():
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}", exc_info=True)
         finally:
-            client_data.save_data()
+            if client_data.is_signed_up:
+                client_data.save_data()
             logger.info("Connection closed.")
 
 if __name__ == "__main__":

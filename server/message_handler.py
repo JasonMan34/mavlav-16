@@ -85,6 +85,9 @@ class MessageHandler:
         elif state.digits is None:
             raise Exception("Digits are not set, but handle_sign_up_confirm was called")
         elif state.digits != digits:
+            state.sign_up_attempts += 1
+            if state.sign_up_attempts >= 3:
+                return self.generate_response(ResponseType.SIGN_UP_FAILED_TOO_MANY_ATTEMPTS)
             return self.generate_response(ResponseType.SIGN_UP_WRONG_DIGITS)
         
         

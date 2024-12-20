@@ -29,7 +29,7 @@ def private_key_to_pem(ec_private_key: EllipticCurvePrivateKey) -> bytes:
         encryption_algorithm=serialization.NoEncryption() 
     )
 
-def load_public_key(pem_data: bytes) -> EllipticCurvePrivateKey:
+def load_public_key(pem_data: bytes) -> EllipticCurvePublicKey:
     return load_pem_public_key(pem_data, backend=default_backend())
 
 def load_private_key(pem_data: bytes) -> EllipticCurvePrivateKey:

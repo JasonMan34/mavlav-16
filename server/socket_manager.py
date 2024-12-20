@@ -79,7 +79,7 @@ class SocketManager:
             logger.warning(f"Connection with {state.addr} closed mid-message: {e}")
             self.unregister_client(conn)
         except Exception as e:
-            logger.error(f"Unexpected error with client {state.addr}: {e}")
+            logger.error(f"Unexpected error with client {state.addr}: {e}", exc_info=True)
             self.unregister_client(conn)
 
     def unregister_client(self, conn: socket.socket) -> None:

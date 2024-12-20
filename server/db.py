@@ -5,9 +5,9 @@ import os
 DB_FILE = "db.pkl"
 
 class Client:
-    def __init__(self, phone_number: str, public_key: bytes):
+    def __init__(self, phone_number: str, public_key_bytes: bytes):
         self.phone_number = phone_number
-        self.public_key = public_key
+        self.public_key_bytes = public_key_bytes
 
 registered_clients: dict[str, Client] = {}
 messages: dict[str, bytes] = {}
@@ -43,7 +43,7 @@ def register_client(phone_number: str, public_key: bytes):
 
 def get_public_key(phone_number: str):
     recipient = registered_clients.get(phone_number, None)
-    return recipient.public_key if recipient else None
+    return recipient.public_key_bytes if recipient else None
 
 # Load data at module initialization
 load_db()

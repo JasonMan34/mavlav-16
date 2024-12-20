@@ -38,15 +38,29 @@ def send_request(client_socket: socket.socket, request_type: RequestType, data: 
     :param request_type: The type of the request (e.g., SIGN_UP, SIGN_UP_CONFIRM).
     :param data: The data to send with the request (e.g., phone number, confirmation code).
     """
-    # Prepare the data to send
-    data_length_bytes = len(data).to_bytes(4, 'big')
-    request_message = bytes([request_type.value]) + data_length_bytes + data
+    
+    if request_type in {RequestType.INIT_MESSAGING, RequestType.SEND_MESSAGE}:
+        signature = sign(data, client_data.private_key)
+        signature_length_bytes = len(signature).to_bytes(2, 'big')
+        total_data_length = len(data) + len(signature_length_bytes) + len(signature)
+        data_length_bytes = total_data_length.to_bytes(4, 'big')
+        request_message = (
+            bytes([request_type.value]) +
+            data_length_bytes +
+            signature_length_bytes +
+            data +
+            signature
+        )
+    else:
+        data_length_bytes = len(data).to_bytes(4, 'big')
+        request_message = bytes([request_type.value]) + data_length_bytes + data
 
     # Send the request to the server
     logger.debug(f"Sending {request_type.name} request with data: {data}")
     client_socket.sendall(request_message)
     logger.debug("Request sent.")
     return receive_response(client_socket)
+
 
 def receive_response(client_socket: socket.socket):
     response_type_int = int.from_bytes(client_socket.recv(1), 'big')

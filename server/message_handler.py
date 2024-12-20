@@ -7,7 +7,7 @@ from client_state import ClientState
 from db import *
 import json 
 from base64 import b64encode
-from crypto import load_public_key, verify_signature
+from crypto import load_public_key, sign, verify_signature
 
 class InvalidSignature(Exception):
     pass
@@ -167,13 +167,20 @@ class MessageHandler:
         return self.generate_response(ResponseType.HERE_ARE_YOUR_MESSAGES, json.dumps(client_messages).encode())
     
     @staticmethod
-    def generate_response(response_type: ResponseType, extra_data: bytes = b"") -> bytes:
+    def generate_response(response_type: ResponseType, data = b"", sign_data = False) -> bytes:
+
         """
-        This method generates a response message with the given status and extra data.
+        Generates a response to send back to the client.
 
         :param response_type: The response type
-        :param extra_data: Extra data to send after the response type
-        :return: The binary message to send
+        :param data: The data to send with the response
+        :param sign_data: Whether to sign the response data
+        :return: The response as bytes
         """
-        extra_data_length = len(extra_data).to_bytes(4, 'big')
-        return bytes([response_type.value]) + extra_data_length + extra_data
+        if sign_data:
+            signature = sign(data)
+            extra_data_length = (len(data) + 512).to_bytes(4, 'big')
+            return bytes([response_type.value]) + extra_data_length + data + signature
+        else:
+            extra_data_length = len(data).to_bytes(4, 'big')
+            return bytes([response_type.value]) + extra_data_length + data

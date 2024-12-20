@@ -1,3 +1,4 @@
+from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey 
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import padding, serialization, hashes
@@ -90,3 +91,6 @@ def load_server_public_key() -> RSAPublicKey:
         return load_pem_public_key(key_file.read())
     
 server_public_key = load_server_public_key()
+
+def verify_server_signature(data: bytes, signature: bytes) -> None:
+    server_public_key.verify(signature, data, PKCS1v15(), hashes.SHA256())

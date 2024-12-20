@@ -1,5 +1,5 @@
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import ec, padding
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
@@ -16,3 +16,6 @@ def load_public_key(pem_data: bytes) -> EllipticCurvePublicKey:
 
 def verify_signature(data: bytes, signature: bytes, public_key: EllipticCurvePublicKey) -> None:
     public_key.verify(signature, data, ec.ECDSA(hashes.SHA256()))
+
+def sign(data: bytes):
+    return server_private_key.sign(data, padding.PKCS1v15(), hashes.SHA256())

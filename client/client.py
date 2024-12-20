@@ -83,11 +83,12 @@ def sign_up(conn: socket.socket) -> None:
 
     while not client_data.is_signed_up:
         confirmation_code = input("Please Enter the confirmation code: ").strip()
-        confirmation_data = confirmation_code.encode() + client_data.public_key
+        confirmation_data = confirmation_code.encode() + client_data.public_key_bytes
         response_type, response_data = send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
 
         if response_type == ResponseType.SIGN_UP_SUCCESS:
             client_data.is_signed_up = True
+            client_data.save_data()
             logger.info("Sign-up successful!")
         elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS:
             print("Wrong confirmation code entered. Please try again.")
@@ -106,13 +107,12 @@ def sign_in(conn: socket.socket):
 
     # Handle challenge
     challenge = response_data
-    private_key = load_private_key(client_data.private_key)
+    private_key = load_private_key(client_data.private_key_bytes)
     signature = sign(challenge, private_key)
     response_type, response_data = send_request(conn, RequestType.SIGN_IN_CONFIRM, signature)
 
     if response_type == ResponseType.SIGN_IN_SUCCESS:
         logger.info("Sign-in successful!")
-        client_data.is_signed_up = True
     else:
         logger.error("Sign-in failed. Exiting.")
         exit(1)
@@ -131,7 +131,7 @@ def init_messaging(conn: socket.socket, recipient_phone: str):
 
 def get_and_create_crypto_utils(conn: socket.socket, recipient_phone: str):
     public_key = init_messaging(conn, recipient_phone)
-    shared_secret = create_shared_secret(client_data.private_key, public_key)
+    shared_secret = create_shared_secret(client_data.private_key_bytes, public_key)
     logger.debug("Successfully created a shared secret")
     aes_key, iv = create_AES_key()
     logger.debug("Successfully created AES key")
@@ -236,6 +236,7 @@ def main():
 
             user_action_loop(client_socket)
         except ConnectionClosed as e:
+            print("Connection with server unexpectedly closed.")
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:
             logger.info("\nClient shutting down.")

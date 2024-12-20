@@ -1,10 +1,11 @@
 import os
 import pickle
-from crypto import generate_ec_keypair
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey 
+from crypto import generate_ec_keypair, load_private_key, load_public_key, private_key_to_pem, public_key_to_pem
 from logger import logger
 
 
-DATA_FILE_PATH = "client.data"
+DATA_FILE_PATH = "client_data.pkl"
 
 class ClientData:
     _instance = None
@@ -18,8 +19,10 @@ class ClientData:
         if not hasattr(self, '_initialized'):
             self.phone_number = None
             self.is_signed_up = False
-            self.private_key: bytes | None = None
-            self.public_key: bytes | None = None
+            self.private_key_bytes: bytes | None = None
+            self.private_key: EllipticCurvePrivateKey | None = None
+            self.public_key_bytes: bytes | None = None
+            self.public_key: EllipticCurvePublicKey | None = None
             self.contacts: dict[str, tuple[bytes, bytes, bytes]] = {}
             self.load_data()
             self._initialized = True
@@ -34,13 +37,15 @@ class ClientData:
                     self.phone_number = data.get('phone_number')
                     self.is_signed_up = data.get('is_signed_up', False)
                     
-                    self.private_key = data.get('private_key')
-                    self.public_key = data.get('public_key')
+                    self.private_key_bytes = data.get('private_key_bytes')
+                    self.public_key_bytes = data.get('public_key_bytes')
                     
-                    if self.phone_number is None or self.is_signed_up is None:
+                    if self.phone_number is None or self.is_signed_up is None or self.private_key_bytes is None or self.public_key_bytes is None:
                         logger.warning("client.data file is corrupted, creating new client data.")
                         self.create_new_client()
                     else:
+                        self.private_key = load_private_key(self.private_key_bytes)
+                        self.public_key = load_public_key(self.public_key_bytes)
                         logger.debug(f"Loaded existing data for phone number {self.phone_number}")
             except Exception as e:
                 logger.error(f"Failed to load client data: {e}")
@@ -57,28 +62,25 @@ class ClientData:
             self.phone_number = input("Please enter your phone number (10 digits): ").strip()
         
         self.public_key, self.private_key = generate_ec_keypair()
+        self.public_key_bytes = public_key_to_pem(self.public_key)
+        self.private_key_bytes = private_key_to_pem(self.private_key)
         self.is_signed_up = False
-        
-        # Save the data to a file
-        self.save_data()
     
     def save_data(self):
         """Save the current client data to the file using pickle."""
         try:
             with open(DATA_FILE_PATH, "wb") as file:
-                # Prepare the data to be serialized
                 data = {
                     'phone_number': self.phone_number,
                     'is_signed_up': self.is_signed_up,
-                    'private_key': self.private_key,
-                    'public_key': self.public_key
+                    'private_key_bytes': self.private_key_bytes,
+                    'public_key_bytes': self.public_key_bytes
                 }
-                # Serialize and save the data
+
                 pickle.dump(data, file)
                 logger.debug("Client data saved successfully.")
         except Exception as e:
             logger.error(f"Failed to save client data: {e}")
             exit(1)
 
-# Access the singleton instance
 client_data = ClientData()

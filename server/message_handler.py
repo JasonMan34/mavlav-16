@@ -109,7 +109,7 @@ class MessageHandler:
             return self.generate_response(ResponseType.SIGN_IN_FAILED_PHONE_NUMBER_NOT_REGISTERED)
 
         state.phone_number = phone_number
-        challenge = secrets.token_hex(32)
+        challenge = secrets.token_hex(16)
         state.sign_in_challenge = challenge
         state.allowed_requests = [RequestType.SIGN_IN_CONFIRM]
         return self.generate_response(ResponseType.SIGN_IN_STARTED, challenge.encode())
@@ -163,7 +163,7 @@ class MessageHandler:
             return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
 
         client_messages = messages[state.phone_number]
-        return self.generate_response(ResponseType.SENDING_MESSAGE, json.dumps(client_messages).encode())
+        return self.generate_response(ResponseType.HERE_ARE_YOUR_MESSAGES, json.dumps(client_messages).encode())
     
     @staticmethod
     def generate_response(response_type: ResponseType, extra_data: bytes = b"") -> bytes:

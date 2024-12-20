@@ -41,7 +41,7 @@ def send_request(client_socket: socket.socket, request_type: RequestType, data: 
     
     if request_type in {RequestType.INIT_MESSAGING, RequestType.SEND_MESSAGE}:
         signature = sign(data, client_data.private_key)
-        signature_length_bytes = len(signature).to_bytes(2, 'big')
+        signature_length_bytes = len(signature).to_bytes(1, 'big')
         total_data_length = len(data) + len(signature_length_bytes) + len(signature)
         data_length_bytes = total_data_length.to_bytes(4, 'big')
         request_message = (
@@ -259,8 +259,6 @@ def main():
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}", exc_info=True)
         finally:
-            if client_data.is_signed_up:
-                client_data.save_data()
             logger.info("Connection closed.")
 
 if __name__ == "__main__":

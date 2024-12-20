@@ -1,10 +1,10 @@
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey 
-from cryptography.hazmat.primitives.asymmetric import ec 
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import padding, serialization, hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
-from base64 import b64encode
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 import os
 
 def generate_ec_keypair() -> tuple[EllipticCurvePublicKey, EllipticCurvePrivateKey]: 
@@ -84,3 +84,9 @@ def aes_ecb_decrypt(cipher_text: bytes, aes_key: bytes) -> bytes:
     unpadder = padding.PKCS7(128).unpadder()
     plaintext = unpadder.update(padded_message) + unpadder.finalize()
     return plaintext
+
+def load_server_public_key() -> RSAPublicKey:
+    with open("server_public_key.pem", "rb") as key_file:
+        return load_pem_public_key(key_file.read())
+    
+server_public_key = load_server_public_key()

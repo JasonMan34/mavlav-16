@@ -55,8 +55,8 @@ class MessageHandler:
         return response
 
     def verify_signature_for_message(self, data: bytes, state: ClientState):
-        signature_length = int.from_bytes(data[:2], 'big')
-        message_data = data[2:len(data) - signature_length]
+        signature_length = int.from_bytes(data[:1], 'big')
+        message_data = data[1:len(data) - signature_length]
         signature = data[len(data) - signature_length:]
         try:
             verify_signature(message_data, signature, state.public_key)

@@ -91,8 +91,9 @@ def sign_up(conn: socket.socket) -> None:
             logger.error(f"Unexpected response from server: {response_type.name}")
             exit(1)
 
+# TODO: JASON - Fix this function
 def get_public_key(conn: socket.socket, recipient_phone: str):
-    response_type, response_data = send_request(conn, RequestType.INIT_MSGING, recipient_phone.encode())
+    response_type, response_data = send_request(conn, RequestType.INIT_MESSAGING, recipient_phone.encode())
     if response_type == ResponseType.RECIPIENT_PHONE_NOT_EXIST:
         raise PhoneDoesNotExist()
     if response_type != ResponseType.SENDING_REQUESTED_PUB_KEY:
@@ -124,7 +125,7 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
     encrypted_msg = aes_cbc_encrypt(message.encode(), aes_key, iv)
     logger.debug(f"Successfully encrypted message to send to {recipient_phone} (encrypted using AES key in CBC mode)")
 
-    response_type, response_data = send_request(conn, RequestType.SEND_MSG, struct.pack(
+    response_type, response_data = send_request(conn, RequestType.SEND_MESSAGE, struct.pack(
         f'>10s48s16s{len(encrypted_msg)}s',
         recipient_phone.encode(),
         encrypted_aes_key,
@@ -132,7 +133,7 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
         encrypted_msg
     ))
 
-    if response_type == ResponseType.MSG_TRANSMIT_SUCCESS:
+    if response_type == ResponseType.MESSAGE_SENT:
         print(f"Successfully sent message to {recipient_phone}")
     else:
         print("Failed to send message to", recipient_phone)
@@ -140,7 +141,7 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
 
 
 def receive_incoming_messages(conn: socket.socket):
-    response_type, response_data = send_request(conn, RequestType.RECV_MSGS, b'')
+    response_type, response_data = send_request(conn, RequestType.RECEIVE_MESSAGES, b'')
     messages = json.loads(response_data.decode())
     if not messages:
         print("\nNo messages.")

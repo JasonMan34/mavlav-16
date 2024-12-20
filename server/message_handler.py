@@ -28,12 +28,15 @@ class MessageHandler:
             case RequestType.SIGN_UP_CONFIRM:
                 digits, public_key_bytes = data[:6].decode(), data[6:]
                 response = self.handle_sign_up_confirm(digits=digits, public_key_bytes=public_key_bytes, state=state)
-            case RequestType.INIT_MSGING:
+            case RequestType.INIT_MESSAGING:
                 response = self.handle_init_messaging(recipient_phone_number=data.decode(), state=state)
-            case RequestType.SEND_MSG:
+            case RequestType.SEND_MESSAGE:
                 response = self.handle_transmit_msg(recipient_phone_number=data[:10].decode(), msg_to_transmit=data[10:], state=state)  
-            case RequestType.RECV_MSGS:
+            case RequestType.RECEIVE_MESSAGES:
                 response = self.handle_recv_msgs(state=state)
+            case _:
+                response = self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
+
         return response
 
     def handle_sign_up(self, phone_number: str, state: ClientState) -> bytes:
@@ -61,13 +64,13 @@ class MessageHandler:
             # add a general check for the validity of public key
         except Exception as e:
             logger.warning(f"Invalid public key received from client {state.addr}: {e}")
-            return self.generate_response(ResponseType.INVALID_INPUT)
+            return self.generate_response(ResponseType.SIGN_UP_FAILED_INVALID_KEY)
         
         state.digits = None
         state.public_key = public_key_bytes
 
         # client may send messages to other clients now
-        state.allowed_requests = [RequestType.INIT_MSGING, RequestType.RECV_MSGS, RequestType.SEND_MSG]
+        state.allowed_requests = [RequestType.INIT_MESSAGING, RequestType.RECEIVE_MESSAGES, RequestType.SEND_MESSAGE]
         return self.generate_response(ResponseType.SIGN_UP_SUCCESS)
 
     def handle_init_messaging(self, recipient_phone_number: str, state: ClientState) -> bytes:
@@ -92,14 +95,14 @@ class MessageHandler:
 
         messages[recipient_phone_number][state.phone_number].append(b64encode(msg_to_transmit).decode())
     
-        return self.generate_response(ResponseType.MSG_TRANSMIT_SUCCESS)   
+        return self.generate_response(ResponseType.MESSAGE_SENT)   
         
     def handle_recv_msgs(self, state: ClientState):
         if not is_client_registered(state.phone_number):
             return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
 
         client_messages = messages[state.phone_number]
-        return self.generate_response(ResponseType.SENDING_MSGS, json.dumps(client_messages).encode())
+        return self.generate_response(ResponseType.SENDING_MESSAGE, json.dumps(client_messages).encode())
     
     @staticmethod
     def generate_response(response_type: ResponseType, extra_data: bytes = b"") -> bytes:

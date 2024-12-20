@@ -58,8 +58,7 @@ def receive_response(client_socket: socket.socket):
 
 def sign_up(conn: socket.socket) -> None:
     # Send SIGN_UP request
-    send_request(conn, RequestType.SIGN_UP, client_data.phone_number.encode())
-    response_type, response_data = receive_response(conn)
+    response_type, response_data = send_request(conn, RequestType.SIGN_UP, client_data.phone_number.encode())
 
     if response_type == ResponseType.PHONE_NUMBER_ALREADY_REGISTERED.value:
         logger.error("Phone number is already registered. Exiting.")
@@ -80,8 +79,7 @@ def sign_up(conn: socket.socket) -> None:
     while not client_data.is_signed_up:
         confirmation_code = input("Please Enter the confirmation code: ").strip()
         confirmation_data = confirmation_code.encode() + client_data.public_key
-        send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
-        response_type, response_data = receive_response(conn)
+        response_type, response_data = send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
 
         if response_type == ResponseType.SIGN_UP_SUCCESS:
             client_data.is_signed_up = True
@@ -94,8 +92,7 @@ def sign_up(conn: socket.socket) -> None:
             exit(1)
 
 def get_public_key(conn: socket.socket, recipient_phone: str):
-    send_request(conn, RequestType.INIT_MSGING, recipient_phone.encode())
-    response_type, public_key = receive_response(conn)
+    response_type, response_data = send_request(conn, RequestType.INIT_MSGING, recipient_phone.encode())
     if response_type == ResponseType.RECIPIENT_PHONE_NOT_EXIST:
         raise PhoneDoesNotExist()
     if response_type != ResponseType.SENDING_REQUESTED_PUB_KEY:
@@ -127,7 +124,7 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
     encrypted_msg = aes_cbc_encrypt(message.encode(), aes_key, iv)
     logger.debug(f"Successfully encrypted message to send to {recipient_phone} (encrypted using AES key in CBC mode)")
 
-    send_request(conn, RequestType.SEND_MSG, struct.pack(
+    response_type, response_data = send_request(conn, RequestType.SEND_MSG, struct.pack(
         f'>10s48s16s{len(encrypted_msg)}s',
         recipient_phone.encode(),
         encrypted_aes_key,
@@ -135,7 +132,6 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
         encrypted_msg
     ))
 
-    response_type, response_data = receive_response(conn)
     if response_type == ResponseType.MSG_TRANSMIT_SUCCESS:
         print(f"Successfully sent message to {recipient_phone}")
     else:
@@ -144,8 +140,7 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
 
 
 def receive_incoming_messages(conn: socket.socket):
-    send_request(conn, RequestType.RECV_MSGS, b'')
-    response_type, response_data = 
+    response_type, response_data = send_request(conn, RequestType.RECV_MSGS, b'')
     messages = json.loads(response_data.decode())
     if not messages:
         print("\nNo messages.")

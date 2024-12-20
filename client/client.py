@@ -3,10 +3,15 @@ from client_data import client_data
 from logger import logger
 from protocol import RequestType, ResponseType
 from crypto import *
+from base64 import b64decode
 import struct
 import json
 
 class ConnectionClosed(Exception):
+    pass
+class PhoneDoesNotExist(Exception):
+    pass
+class BadRequest(Exception):
     pass
 
 def recv_exact(conn: socket.socket, size: int) -> bytes:
@@ -27,7 +32,7 @@ PORT = 18927
 def send_request(client_socket: socket.socket, request_type: RequestType, data: bytes) -> None:
     """
     Send a request to the server.
-    
+
     :param client_socket: The socket connection to the server.
     :param request_type: The type of the request (e.g., SIGN_UP, SIGN_UP_CONFIRM).
     :param data: The data to send with the request (e.g., phone number, confirmation code).
@@ -37,14 +42,17 @@ def send_request(client_socket: socket.socket, request_type: RequestType, data: 
     request_message = bytes([request_type.value]) + data_length_bytes + data
 
     # Send the request to the server
-    logger.info(f"Sending {request_type.name} request with data: {data}")
+    logger.debug(f"Sending {request_type.name} request with data: {data}")
     client_socket.sendall(request_message)
-    logger.info("Request sent.")
+    logger.debug("Request sent.")
+    return receive_response(client_socket)
 
 def receive_response(client_socket: socket.socket):
     response_type_int = int.from_bytes(client_socket.recv(1), 'big')
     response_type = ResponseType(response_type_int)
+    logger.debug(f"Received response type {response_type}")
     response_length = int.from_bytes(client_socket.recv(4), 'big')
+    logger.debug(f"Received response length {response_length}")
     response_data = recv_exact(client_socket, response_length)
     return response_type, response_data
 
@@ -68,82 +76,129 @@ def sign_up(conn: socket.socket) -> None:
     print(f"[PHONE] You have 1 new SMS message on your mobile device!")
     print(f"[PHONE] Confirmation code received from super secure server: {confirmation_code_received}")
     print(f"-- The program will now continue --\n")
-    confirmation_code = input("Please Enter the confirmation code: ").strip()
-    confirmation_data = confirmation_code.encode() + client_data.public_key
-    send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
-    response_type, response_data = receive_response(conn)
 
-    if response_type == ResponseType.SIGN_UP_SUCCESS:
-        client_data.is_signed_up = True
-        logger.info("Sign-up successful!")
-    elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS:
-        logger.error(f"Wrong confirmation code entered. Exiting {response_type.name}")
-        exit(1)
-    else:
-        logger.error(f"Unexpected response from server: {response_type.name}")
-        return
-    
-def recieve_public_key(conn: socket.socket, recipient_phone: str):
+    while not client_data.is_signed_up:
+        confirmation_code = input("Please Enter the confirmation code: ").strip()
+        confirmation_data = confirmation_code.encode() + client_data.public_key
+        send_request(conn, RequestType.SIGN_UP_CONFIRM, confirmation_data)
+        response_type, response_data = receive_response(conn)
+
+        if response_type == ResponseType.SIGN_UP_SUCCESS:
+            client_data.is_signed_up = True
+            logger.info("Sign-up successful!")
+        elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS:
+            print("Wrong confirmation code entered. Please try again.")
+            logger.error(f"Wrong confirmation code entered {response_type.name}")
+        else:
+            logger.error(f"Unexpected response from server: {response_type.name}")
+            exit(1)
+
+def get_public_key(conn: socket.socket, recipient_phone: str):
     send_request(conn, RequestType.INIT_MSGING, recipient_phone.encode())
-    response_type, response_data = receive_response(conn)
+    response_type, public_key = receive_response(conn)
+    if response_type == ResponseType.RECIPIENT_PHONE_NOT_EXIST:
+        raise PhoneDoesNotExist()
     if response_type != ResponseType.SENDING_REQUESTED_PUB_KEY:
-        return None
-    logger.info(f"Successfully recieved public key of {recipient_phone}")
-    return response_data
+        logger.warning(f"Unexpected response from server: {response_type.name}")
+        raise BadRequest()
+
+    logger.debug(f"Successfully received public key of {recipient_phone}")
+    return public_key
 
 def get_and_create_crypto_utils(conn: socket.socket, recipient_phone: str):
-    public_key = recieve_public_key(conn, recipient_phone)
+    public_key = get_public_key(conn, recipient_phone)
     shared_secret = create_shared_secret(client_data.private_key, public_key)
-    logger.info("Successfully created a shared secret")
+    logger.debug("Successfully created a shared secret")
     aes_key, iv = create_AES_key()
-    logger.info("Successfully created AES key")
+    logger.debug("Successfully created AES key")
     client_data.contacts[recipient_phone] = (shared_secret, aes_key, iv)
 
 def send_msg(conn: socket.socket, recipient_phone: str, message: str):
     if recipient_phone in client_data.contacts:
-        logger.info(f"You have {recipient_phone} set and ready for msging!")
-
+        logger.info(f"You have {recipient_phone} set and ready for messaging!")
     else:
+        logger.info(f"Initiating end-to-end encryption with {recipient_phone}...")
         get_and_create_crypto_utils(conn, recipient_phone)
-    
-    shared_secret, aes_key, iv = client_data.contacts[recipient_phone]
-    logger.info("Successfully dumped shared secret, AES key and iv")
-    encrypted_aes_key = aes_ecb_encrypt(aes_key, shared_secret)
-    logger.info("Successfully encrypted AES key for transmition (encrypted using shared secret in ECB mode)")
-    encrypted_msg = aes_cbc_encrypt(message.encode(), aes_key, iv)
-    logger.info(f"Successfully encrypted message to send to {recipient_phone} (encrypted using AES key in CBC mode)")
 
+    shared_secret, aes_key, iv = client_data.contacts[recipient_phone]
+    logger.debug("Successfully dumped shared secret, AES key and iv")
+    encrypted_aes_key = aes_ecb_encrypt(aes_key, shared_secret)
+    logger.debug("Successfully encrypted AES key for transmission (encrypted using shared secret in ECB mode)")
+    encrypted_msg = aes_cbc_encrypt(message.encode(), aes_key, iv)
+    logger.debug(f"Successfully encrypted message to send to {recipient_phone} (encrypted using AES key in CBC mode)")
 
     send_request(conn, RequestType.SEND_MSG, struct.pack(
         f'>10s48s16s{len(encrypted_msg)}s',
         recipient_phone.encode(),
-        encrypted_aes_key,      
-        iv, 
+        encrypted_aes_key,
+        iv,
         encrypted_msg
     ))
 
-def get_incoming_messages(conn: socket.socket):
-    send_request(conn, RequestType.RECV_MSGS, b'')
     response_type, response_data = receive_response(conn)
+    if response_type == ResponseType.MSG_TRANSMIT_SUCCESS:
+        print(f"Successfully sent message to {recipient_phone}")
+    else:
+        print("Failed to send message to", recipient_phone)
+        logger.error(f"Failed to send message to {recipient_phone}. Response type: {response_type}")
+
+
+def receive_incoming_messages(conn: socket.socket):
+    send_request(conn, RequestType.RECV_MSGS, b'')
+    response_type, response_data = 
     messages = json.loads(response_data.decode())
-    if messages:
-        for sender in messages:
-            if sender not in client_data.contacts:
-                get_and_create_crypto_utils(conn, sender)
+    if not messages:
+        print("\nNo messages.")
+        return
 
-            shared_secret, aes_key, iv = client_data.contacts[sender]
-            logger.info(f"You've recieved the following messages from {sender}:")
-            for msg in messages[sender]:
-                decoded_msg = b64decode(msg)
-                encrypted_aes, iv, encrypted_msg = struct.unpack(
-                    f'>48s16s{len(decoded_msg)-48-16}s',
-                    decoded_msg
-                )
-                aes_key = aes_ecb_decrypt(encrypted_aes, shared_secret)
-                decrypted_msg = aes_cbc_decrypt(encrypted_msg, aes_key, iv)
-                print(decrypted_msg.decode())
+    for sender in messages:
+        if sender not in client_data.contacts:
+            get_and_create_crypto_utils(conn, sender)
 
-        
+        shared_secret, aes_key, iv = client_data.contacts[sender]
+        print(f"\nYou've received the following messages from {sender}:")
+        for msg in messages[sender]:
+            decoded_msg = b64decode(msg)
+            encrypted_aes, iv, encrypted_msg = struct.unpack(
+                f'>48s16s{len(decoded_msg)-48-16}s',
+                decoded_msg
+            )
+            aes_key = aes_ecb_decrypt(encrypted_aes, shared_secret)
+            decrypted_msg = aes_cbc_decrypt(encrypted_msg, aes_key, iv)
+            print(decrypted_msg.decode())
+
+
+
+def get_user_action():
+    return input("""
+What would you like to do?
+0 - Send message
+1 - Recieve all messages
+2 - Quit
+""").strip()
+
+def user_action_loop(client_socket: socket.socket):
+    action = get_user_action()
+    while action == "0" or action == "1":
+        try:
+            if action == "1":
+                receive_incoming_messages(client_socket)
+            else:
+                recipient_phone = input("Enter recipient's phone: ")
+                if len(recipient_phone) != 10 or not recipient_phone.isdigit():
+                    print("Invalid phone number")
+                else:
+                    message = input("Enter your message: ")
+                    send_msg(client_socket, recipient_phone, message)
+
+                action = get_user_action()
+        except PhoneDoesNotExist:
+            print("That phone number does not exist on the server")
+        except BadRequest:
+            print("Something went wrong")
+
+
+
 def main():
     # Create a socket and connect to the server
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -156,27 +211,16 @@ def main():
             else:
                 logger.info("Signing up...")
                 sign_up(client_socket)
-                request = input("What would you like to do?\n0 - Send message\n1 - Recieve all messages\n2 - Quit\n").strip()
-                while request == "0" or request == "1":
-                    if request == "0":
-                        recipient_phone = input("Enter recipient's phone: ")
-                        if len(recipient_phone) != 10 or not recipient_phone.isdigit():
-                            print("Invalid phone number")
-                        else:
-                            message = input("Enter your message: ")     
-                            send_msg(client_socket, recipient_phone, message) 
-                    else:
-                        get_incoming_messages(client_socket)        
-                    request = input("What would you like to do?\n0 - Send message\n1 - Recieve all messages\n2 - Quit\n").strip()
 
+            user_action_loop(client_socket)
         except ConnectionClosed as e:
             logger.warning(f"Connection with server unexpectedly closed: {e}")
         except KeyboardInterrupt:
             logger.info("\nClient shutting down.")
         except Exception as e:
-            logger.error(f"An unexpected error occurred: {e}")
+            logger.error(f"An unexpected error occurred: {e}", exc_info=True)
         finally:
-            #client_data.save_data()
+            client_data.save_data()
             logger.info("Connection closed.")
 
 if __name__ == "__main__":

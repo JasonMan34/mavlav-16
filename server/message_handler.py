@@ -3,7 +3,6 @@ from logger import logger
 from protocol import RequestType, ResponseType
 from client_state import ClientState
 from db import *
-import struct
 import json 
 from base64 import b64encode
 
@@ -34,7 +33,7 @@ class MessageHandler:
             case RequestType.SEND_MSG:
                 response = self.handle_transmit_msg(recipient_phone_number=data[:10].decode(), msg_to_transmit=data[10:], state=state)  
             case RequestType.RECV_MSGS:
-                response = self.handle_recv_msgs(state=state)      
+                response = self.handle_recv_msgs(state=state)
         return response
 
     def handle_sign_up(self, phone_number: str, state: ClientState) -> bytes:
@@ -59,7 +58,7 @@ class MessageHandler:
         
         try:
             register_client(state.phone_number, public_key_bytes)
-            #add a general check for the validity of public key
+            # add a general check for the validity of public key
         except Exception as e:
             logger.warning(f"Invalid public key received from client {state.addr}: {e}")
             return self.generate_response(ResponseType.INVALID_INPUT)
@@ -67,13 +66,14 @@ class MessageHandler:
         state.digits = None
         state.public_key = public_key_bytes
 
-        #client may send msgs to other clients now
+        # client may send messages to other clients now
         state.allowed_requests = [RequestType.INIT_MSGING, RequestType.RECV_MSGS, RequestType.SEND_MSG]
         return self.generate_response(ResponseType.SIGN_UP_SUCCESS)
 
     def handle_init_messaging(self, recipient_phone_number: str, state: ClientState) -> bytes:
         if not is_client_registered(state.phone_number):
             return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
+        
         recipient_public_key = get_public_key(recipient_phone_number)
         if recipient_public_key:
             return self.generate_response(ResponseType.SENDING_REQUESTED_PUB_KEY, recipient_public_key)
@@ -83,21 +83,22 @@ class MessageHandler:
     def handle_transmit_msg(self, recipient_phone_number: str, msg_to_transmit: bytes, state: ClientState):
         if not is_client_registered(state.phone_number):
             return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
+        
         if recipient_phone_number not in registered_clients:
             return self.generate_response(ResponseType.RECIPIENT_PHONE_NOT_EXIST)
-        else:
-            if state.phone_number in messages[recipient_phone_number]:
-                messages[recipient_phone_number][state.phone_number].append(b64encode(msg_to_transmit).decode())
-            else:
-                messages[recipient_phone_number][state.phone_number] = [b64encode(msg_to_transmit).decode()]
         
-            return self.generate_response(ResponseType.MSG_TRANSMIT_SUCCESS)   
+        if state.phone_number not in messages[recipient_phone_number]:
+            messages[recipient_phone_number][state.phone_number] = []
+
+        messages[recipient_phone_number][state.phone_number].append(b64encode(msg_to_transmit).decode())
+    
+        return self.generate_response(ResponseType.MSG_TRANSMIT_SUCCESS)   
         
     def handle_recv_msgs(self, state: ClientState):
         if not is_client_registered(state.phone_number):
             return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
+
         client_messages = messages[state.phone_number]
-        print(client_messages)
         return self.generate_response(ResponseType.SENDING_MSGS, json.dumps(client_messages).encode())
     
     @staticmethod
@@ -110,4 +111,5 @@ class MessageHandler:
         :return: The binary message to send
         """
         extra_data_length = len(extra_data).to_bytes(4, 'big')
+        logger.debug(f"Sending {response_type.name} response with extra data: {extra_data}. extra_data_length: {extra_data_length}")
         return bytes([response_type.value]) + extra_data_length + extra_data

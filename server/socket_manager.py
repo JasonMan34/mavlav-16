@@ -48,7 +48,7 @@ class SocketManager:
                     logger.info(f"Connection from {state.addr} was closed by the client")
                     self.unregister_client(conn)
                     return
-                print(state.allowed_requests)
+
                 if request_type not in state.allowed_requests:
                     logger.warning(f"SocketManager - Received disallowed request type {request_type} from {state.addr}")
                     response = self.message_handler.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
@@ -62,6 +62,7 @@ class SocketManager:
 
                 response = self.message_handler.handle_message(request_type, received_data, state)
                 logger.debug(f"SocketManager - Handled message {request_type} from {state.addr}")
+                logger.debug(f"SocketManager - Sending {len(response)} bytes of data back")
                 conn.sendall(response)
                 response_type = ResponseType(int.from_bytes(response[:1], 'big'))
                 logger.info(f"SocketManager - Sent response {response_type.name} to {state.addr}")

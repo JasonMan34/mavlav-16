@@ -1,19 +1,18 @@
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey 
 from cryptography.hazmat.primitives.asymmetric import ec 
-from cryptography.hazmat.primitives import hashes, padding, serialization
+from cryptography.hazmat.primitives import padding, serialization
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes 
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
-from base64 import b64encode, b64decode
+from base64 import b64encode
 import os
 
-"""
-    Generate Assymetric keys pair.
-    :return: the public and private keys as a tuple in pem format (bytes)
-"""
 def generate_ec_keypair() -> tuple[bytes, bytes]: 
-    private_key =ec.generate_private_key(ec.SECP256R1())
+    """
+        Generate asymmetric keys pair.
+        :return: the public and private keys as a tuple in pem format (bytes)
+    """
+    private_key = ec.generate_private_key(ec.SECP256R1())
     public_key = private_key.public_key()
     return (get_public_key_pem(public_key), get_private_key_pem(private_key))
 
@@ -31,7 +30,7 @@ def get_private_key_pem(ec_private_key: EllipticCurvePrivateKey) -> bytes:
         encryption_algorithm=serialization.NoEncryption() 
     )
 
-#for symmetric key
+# for symmetric key
 def create_shared_secret(our_pem_private_key: bytes, their_pem_public_key: bytes) -> bytes: 
     our_private_key = load_pem_private_key(our_pem_private_key, password=None, backend=default_backend())
     their_public_key = load_pem_public_key(their_pem_public_key, backend=default_backend())
@@ -79,13 +78,11 @@ def aes_ecb_decrypt(cipher_text: bytes, aes_key: bytes) -> bytes:
     return plaintext
 
 
-
-my_pub, my_priv = generate_ec_keypair()
-your_pub, your_priv = generate_ec_keypair()
-
-
 # Test code :)
 if __name__ == "__main__":
+    my_pub, my_priv = generate_ec_keypair()
+    your_pub, your_priv = generate_ec_keypair()
+
     # should be the same
     print(b64encode(create_shared_secret(my_priv, your_pub)).decode())
     print(b64encode(create_shared_secret(your_priv, my_pub)).decode())

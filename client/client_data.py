@@ -20,13 +20,10 @@ class ClientData:
             self.is_signed_up = False
             self.private_key: bytes | None = None
             self.public_key: bytes | None = None
-            self.contacts: dict[str, str]  = {}
-            # Try to load existing client data
-            # SKIP for now
-            #self.load_data()
-            #self._initialized = True
-            self.create_new_client()
-            
+            self.contacts: dict[str, tuple[bytes, bytes, bytes]] = {}
+            self.load_data()
+            self._initialized = True
+
     def load_data(self):
         """Load the client data from the file if it exists."""
         if os.path.exists(DATA_FILE_PATH):
@@ -63,8 +60,7 @@ class ClientData:
         self.is_signed_up = False
         
         # Save the data to a file
-        # SKIP for now
-        # self.save_data()
+        self.save_data()
     
     def save_data(self):
         """Save the current client data to the file using pickle."""

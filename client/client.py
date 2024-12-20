@@ -79,7 +79,7 @@ def sign_up(conn: socket.socket) -> None:
     # Send SIGN_UP request
     response_type, response_data = send_request(conn, RequestType.SIGN_UP, client_data.phone_number.encode())
 
-    if response_type == ResponseType.PHONE_NUMBER_ALREADY_REGISTERED.value:
+    if response_type == ResponseType.SIGN_UP_FAILED_PHONE_NUMBER_ALREADY_REGISTERED.value:
         logger.error("Phone number is already registered. Exiting.")
         exit(1)
     elif response_type == ResponseType.SIGN_UP_STARTED:
@@ -103,10 +103,12 @@ def sign_up(conn: socket.socket) -> None:
         if response_type == ResponseType.SIGN_UP_SUCCESS:
             client_data.is_signed_up = True
             client_data.save_data()
-            logger.info("Sign-up successful!")
-        elif response_type == ResponseType.SIGN_UP_WRONG_DIGITS:
+            print("Sign-up successful!")
+        elif response_type == ResponseType.SIGN_UP_FAILED_WRONG_DIGITS:
             print("Wrong confirmation code entered. Please try again.")
-            logger.error(f"Wrong confirmation code entered {response_type.name}")
+        elif response_type == ResponseType.SIGN_UP_FAILED_TOO_MANY_ATTEMPTS:
+            print("Too many failed sign-up attempts. Exiting.")
+            exit(1)
         else:
             logger.error(f"Unexpected response from server: {response_type.name}")
             exit(1)

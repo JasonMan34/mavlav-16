@@ -1,8 +1,6 @@
 import random
 import secrets
 
-from cryptography.hazmat.primitives import hashes, padding
-
 from logger import logger
 from protocol import RequestType, ResponseType
 from client_state import ClientState
@@ -70,7 +68,7 @@ class MessageHandler:
 
     def handle_sign_up(self, phone_number: str, state: ClientState) -> bytes:
         if is_client_registered(phone_number):
-            return self.generate_response(ResponseType.PHONE_NUMBER_ALREADY_REGISTERED)
+            return self.generate_response(ResponseType.SIGN_UP_FAILED_PHONE_NUMBER_ALREADY_REGISTERED)
 
         state.phone_number = phone_number
         state.digits = str(random.SystemRandom().randint(0, 999999)).zfill(6)
@@ -81,14 +79,14 @@ class MessageHandler:
         if state.phone_number is None:
             raise Exception("Phone number is not set, but handle_sign_up_confirm was called")
         elif is_client_registered(state.phone_number):
-            return self.generate_response(ResponseType.PHONE_NUMBER_ALREADY_REGISTERED)
+            return self.generate_response(ResponseType.SIGN_UP_FAILED_PHONE_NUMBER_ALREADY_REGISTERED)
         elif state.digits is None:
             raise Exception("Digits are not set, but handle_sign_up_confirm was called")
         elif state.digits != digits:
             state.sign_up_attempts += 1
             if state.sign_up_attempts >= 3:
                 return self.generate_response(ResponseType.SIGN_UP_FAILED_TOO_MANY_ATTEMPTS)
-            return self.generate_response(ResponseType.SIGN_UP_WRONG_DIGITS)
+            return self.generate_response(ResponseType.SIGN_UP_FAILED_WRONG_DIGITS)
         
         
         try:

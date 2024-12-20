@@ -67,6 +67,11 @@ class SocketManager:
                 response_type = ResponseType(int.from_bytes(response[:1], 'big'))
                 logger.info(f"SocketManager - Sent response {response_type.name} to {state.addr}")
                 
+                if response_type == ResponseType.CONNECTION_CLOSED:
+                    self.unregister_client(conn)
+                    logger.info(f"Connection from {state.addr} was closed by the server")
+                    return
+                
                 # Special use case, this code should be sent from some 3rd party service, but we're just gonna pretend and use
                 # the same socket as a "secure channel", so we must do it from outside message_handler
                 if request_type == RequestType.SIGN_UP and state.digits is not None:

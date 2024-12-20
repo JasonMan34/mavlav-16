@@ -1,4 +1,5 @@
 import socket
+
 from client_data import client_data
 from logger import logger
 from protocol import RequestType, ResponseType
@@ -29,7 +30,7 @@ def recv_exact(conn: socket.socket, size: int) -> bytes:
 HOST = '127.0.0.1'
 PORT = 18927
 
-def send_request(client_socket: socket.socket, request_type: RequestType, data: bytes) -> None:
+def send_request(client_socket: socket.socket, request_type: RequestType, data: bytes = b''):
     """
     Send a request to the server.
 
@@ -51,6 +52,10 @@ def receive_response(client_socket: socket.socket):
     response_type_int = int.from_bytes(client_socket.recv(1), 'big')
     response_type = ResponseType(response_type_int)
     logger.debug(f"Received response type {response_type}")
+    
+    if response_type == ResponseType.CONNECTION_CLOSED:
+        raise ConnectionClosed("Connection closed by server.")
+    
     response_length = int.from_bytes(client_socket.recv(4), 'big')
     logger.debug(f"Received response length {response_length}")
     response_data = recv_exact(client_socket, response_length)
@@ -91,8 +96,29 @@ def sign_up(conn: socket.socket) -> None:
             logger.error(f"Unexpected response from server: {response_type.name}")
             exit(1)
 
-# TODO: JASON - Fix this function
-def get_public_key(conn: socket.socket, recipient_phone: str):
+def sign_in(conn: socket.socket):
+    # Send SIGN_IN request
+    response_type, response_data = send_request(conn, RequestType.SIGN_IN, client_data.phone_number.encode())
+
+    if response_type != ResponseType.SIGN_IN_STARTED:
+        logger.error(f"Unexpected response from server: {response_type.name}")
+        exit(1)
+
+    # Handle challenge
+    challenge = response_data
+    private_key = load_private_key(client_data.private_key)
+    signature = sign(challenge, private_key)
+    response_type, response_data = send_request(conn, RequestType.SIGN_IN_CONFIRM, signature)
+
+    if response_type == ResponseType.SIGN_IN_SUCCESS:
+        logger.info("Sign-in successful!")
+        client_data.is_signed_up = True
+    else:
+        logger.error("Sign-in failed. Exiting.")
+        exit(1)
+
+
+def init_messaging(conn: socket.socket, recipient_phone: str):
     response_type, response_data = send_request(conn, RequestType.INIT_MESSAGING, recipient_phone.encode())
     if response_type == ResponseType.RECIPIENT_PHONE_NOT_EXIST:
         raise PhoneDoesNotExist()
@@ -101,10 +127,10 @@ def get_public_key(conn: socket.socket, recipient_phone: str):
         raise BadRequest()
 
     logger.debug(f"Successfully received public key of {recipient_phone}")
-    return public_key
+    return response_data
 
 def get_and_create_crypto_utils(conn: socket.socket, recipient_phone: str):
-    public_key = get_public_key(conn, recipient_phone)
+    public_key = init_messaging(conn, recipient_phone)
     shared_secret = create_shared_secret(client_data.private_key, public_key)
     logger.debug("Successfully created a shared secret")
     aes_key, iv = create_AES_key()
@@ -133,15 +159,15 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
         encrypted_msg
     ))
 
-    if response_type == ResponseType.MESSAGE_SENT:
-        print(f"Successfully sent message to {recipient_phone}")
-    else:
+    if response_type != ResponseType.MESSAGE_SENT:
         print("Failed to send message to", recipient_phone)
         logger.error(f"Failed to send message to {recipient_phone}. Response type: {response_type}")
+    else:
+        print(f"Successfully sent message to {recipient_phone}")
 
 
 def receive_incoming_messages(conn: socket.socket):
-    response_type, response_data = send_request(conn, RequestType.RECEIVE_MESSAGES, b'')
+    response_type, response_data = send_request(conn, RequestType.RECEIVE_MESSAGES)
     messages = json.loads(response_data.decode())
     if not messages:
         print("\nNo messages.")
@@ -203,7 +229,7 @@ def main():
             logger.info(f"Connected to server at {HOST}:{PORT}")
             if client_data.is_signed_up:
                 logger.info("Signing in...")
-                # TODO: JASON - Work on sign in function
+                sign_in(client_socket)
             else:
                 logger.info("Signing up...")
                 sign_up(client_socket)

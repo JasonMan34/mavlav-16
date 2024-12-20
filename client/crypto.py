@@ -1,6 +1,6 @@
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey 
 from cryptography.hazmat.primitives.asymmetric import ec 
-from cryptography.hazmat.primitives import padding, serialization
+from cryptography.hazmat.primitives import padding, serialization, hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
@@ -29,6 +29,12 @@ def get_private_key_pem(ec_private_key: EllipticCurvePrivateKey) -> bytes:
         format=serialization.PrivateFormat.PKCS8,  
         encryption_algorithm=serialization.NoEncryption() 
     )
+
+def load_private_key(pem_data: bytes) -> EllipticCurvePrivateKey:
+    return load_pem_private_key(pem_data, password=None, backend=default_backend())
+
+def sign(data: bytes, private_key: EllipticCurvePrivateKey) -> bytes:
+    return private_key.sign(data, ec.ECDSA(hashes.SHA256()))
 
 # for symmetric key
 def create_shared_secret(our_pem_private_key: bytes, their_pem_public_key: bytes) -> bytes: 

@@ -1,5 +1,6 @@
 import socket
 import selectors
+from db import save_db
 from socket_manager import SocketManager
 from logger import logger
 
@@ -38,4 +39,5 @@ def main() -> None:
 if __name__ == "__main__":
     logger.debug("Main function called")
     main()
+    save_db()
 

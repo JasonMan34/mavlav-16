@@ -1,10 +1,15 @@
 import random
+import secrets
+
+from cryptography.hazmat.primitives import hashes, padding
+
 from logger import logger
 from protocol import RequestType, ResponseType
 from client_state import ClientState
 from db import *
 import json 
 from base64 import b64encode
+from crypto import load_public_key, verify_signature
 
 class MessageHandler:
     def __init__(self) -> None:
@@ -28,6 +33,10 @@ class MessageHandler:
             case RequestType.SIGN_UP_CONFIRM:
                 digits, public_key_bytes = data[:6].decode(), data[6:]
                 response = self.handle_sign_up_confirm(digits=digits, public_key_bytes=public_key_bytes, state=state)
+            case RequestType.SIGN_IN:
+                response = self.handle_sign_in(phone_number=data.decode(), state=state)
+            case RequestType.SIGN_IN_CONFIRM:
+                response = self.handle_sign_in_confirm(signature=data, state=state)
             case RequestType.INIT_MESSAGING:
                 response = self.handle_init_messaging(recipient_phone_number=data.decode(), state=state)
             case RequestType.SEND_MESSAGE:
@@ -60,8 +69,8 @@ class MessageHandler:
         
         
         try:
+            load_public_key(public_key_bytes) # Make sure it's a valid key
             register_client(state.phone_number, public_key_bytes)
-            # add a general check for the validity of public key
         except Exception as e:
             logger.warning(f"Invalid public key received from client {state.addr}: {e}")
             return self.generate_response(ResponseType.SIGN_UP_FAILED_INVALID_KEY)
@@ -72,6 +81,36 @@ class MessageHandler:
         # client may send messages to other clients now
         state.allowed_requests = [RequestType.INIT_MESSAGING, RequestType.RECEIVE_MESSAGES, RequestType.SEND_MESSAGE]
         return self.generate_response(ResponseType.SIGN_UP_SUCCESS)
+
+
+    def handle_sign_in(self, phone_number: str, state: ClientState) -> bytes:
+        if not is_client_registered(phone_number):
+            return self.generate_response(ResponseType.SIGN_IN_FAILED_PHONE_NUMBER_NOT_REGISTERED)
+
+        state.phone_number = phone_number
+        challenge = secrets.token_hex(32)
+        state.sign_in_challenge = challenge
+        state.allowed_requests = [RequestType.SIGN_IN_CONFIRM]
+        return self.generate_response(ResponseType.SIGN_IN_STARTED, challenge.encode())
+    
+    def handle_sign_in_confirm(self, signature: bytes, state: ClientState) -> bytes:
+        if not state.phone_number or not state.sign_in_challenge:
+            return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
+
+        public_key_bytes = get_public_key(state.phone_number)
+        if not public_key_bytes:
+            return self.generate_response(ResponseType.REQUEST_TYPE_NOT_ALLOWED)
+
+        try:
+            public_key = load_public_key(public_key_bytes)
+            verify_signature(state.sign_in_challenge.encode(), signature, public_key)
+        except Exception as e:
+            logger.debug(f"Client {state.addr} sent invalid signature: {e}")
+            return self.generate_response(ResponseType.SIGN_IN_FAILED_INVALID_SIGNATURE)
+
+        state.sign_in_challenge = None
+        state.allowed_requests = [RequestType.INIT_MESSAGING, RequestType.RECEIVE_MESSAGES, RequestType.SEND_MESSAGE]
+        return self.generate_response(ResponseType.SIGN_IN_SUCCESS)
 
     def handle_init_messaging(self, recipient_phone_number: str, state: ClientState) -> bytes:
         if not is_client_registered(state.phone_number):
@@ -114,5 +153,4 @@ class MessageHandler:
         :return: The binary message to send
         """
         extra_data_length = len(extra_data).to_bytes(4, 'big')
-        logger.debug(f"Sending {response_type.name} response with extra data: {extra_data}. extra_data_length: {extra_data_length}")
         return bytes([response_type.value]) + extra_data_length + extra_data

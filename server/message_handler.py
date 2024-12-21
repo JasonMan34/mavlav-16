@@ -30,6 +30,8 @@ class MessageHandler:
         # Handle the message based on the message type.
         try:
             match request_type:
+                case RequestType.VERIFY_SERVER_IDENTITY:
+                    response = self.handle_verify_server_identity(challenge=data, state=state)
                 case RequestType.SIGN_UP:
                     response = self.handle_sign_up(phone_number=data.decode(), state=state)
                 case RequestType.SIGN_UP_CONFIRM:
@@ -53,6 +55,11 @@ class MessageHandler:
             response = self.generate_response(ResponseType.INVALID_SIGNATURE)
 
         return response
+
+    def handle_verify_server_identity(self, challenge: bytes, state: ClientState) -> bytes:
+        state.allowed_requests = [RequestType.SIGN_UP, RequestType.SIGN_IN]
+        signature = sign(challenge)
+        return self.generate_response(ResponseType.SERVER_IDENTITY_VERIFICATION, signature)
 
     def verify_signature_for_message(self, data: bytes, state: ClientState):
         signature_length = int.from_bytes(data[:1], 'big')
@@ -110,10 +117,10 @@ class MessageHandler:
             return self.generate_response(ResponseType.SIGN_IN_FAILED_PHONE_NUMBER_NOT_REGISTERED)
 
         state.phone_number = phone_number
-        challenge = secrets.token_hex(16)
+        challenge = secrets.token_bytes(32)
         state.sign_in_challenge = challenge
         state.allowed_requests = [RequestType.SIGN_IN_CONFIRM]
-        return self.generate_response(ResponseType.SIGN_IN_STARTED, challenge.encode())
+        return self.generate_response(ResponseType.SIGN_IN_STARTED, challenge)
     
     def handle_sign_in_confirm(self, signature: bytes, state: ClientState) -> bytes:
         if not state.phone_number or not state.sign_in_challenge:
@@ -125,7 +132,7 @@ class MessageHandler:
 
         try:
             public_key = load_public_key(public_key_bytes)
-            verify_signature(state.sign_in_challenge.encode(), signature, public_key)
+            verify_signature(state.sign_in_challenge, signature, public_key)
             state.public_key_bytes = public_key_bytes
             state.public_key = public_key
             state.sign_in_challenge = None

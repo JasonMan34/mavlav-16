@@ -1,3 +1,4 @@
+import secrets
 import socket
 
 from client_data import client_data
@@ -74,6 +75,21 @@ def receive_response(client_socket: socket.socket):
     logger.debug(f"Received response length {response_length}")
     response_data = recv_exact(client_socket, response_length)
     return response_type, response_data
+
+def verify_server_identity(conn: socket.socket) -> None:
+    challenge = secrets.token_bytes(32)
+    response_type, response_data = send_request(conn, RequestType.VERIFY_SERVER_IDENTITY, challenge)
+    if response_type != ResponseType.SERVER_IDENTITY_VERIFICATION:
+        print(f"Unexpected response from server when verifying server identity: {response_type.name}. Exiting.")
+        exit(1)
+        
+    try:
+        verify_server_signature(challenge, response_data)
+    except Exception:
+        print(f"Failed to verify server identity. Exiting.")
+        exit(1)
+    
+    logger.info("Successfully verified server identity.")
 
 def sign_up(conn: socket.socket) -> None:
     # Send SIGN_UP request
@@ -243,6 +259,9 @@ def main():
         try:
             client_socket.connect((HOST, PORT))
             logger.info(f"Connected to server at {HOST}:{PORT}")
+            
+            verify_server_identity(client_socket)
+            
             if client_data.is_signed_up:
                 logger.info("Signing in...")
                 sign_in(client_socket)

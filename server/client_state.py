@@ -1,3 +1,5 @@
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
+
 from protocol import RequestType
 
 
@@ -9,6 +11,6 @@ class ClientState:
         self.digits: str | None = None
         self.sign_up_attempts: int = 0
         self.public_key_bytes: bytes | None = None
-        self.public_key: bytes | None = None
+        self.public_key: EllipticCurvePublicKey | None = None
         self.sign_in_challenge: bytes | None = None
 

@@ -233,17 +233,19 @@ What would you like to do?
 
 def user_action_loop(client_socket: socket.socket):
     action = get_user_action()
-    while action == "0" or action == "1":
+    while action != "2":
         try:
-            if action == "1":
-                receive_incoming_messages(client_socket)
-            else:
+            if action == "0":
                 recipient_phone = input("Enter recipient's phone: ")
                 if len(recipient_phone) != 10 or not recipient_phone.isdigit():
                     print("Invalid phone number")
                 else:
                     message = input("Enter your message: ")
                     send_msg(client_socket, recipient_phone, message)
+            elif action == "1":
+                receive_incoming_messages(client_socket)
+            else:
+                print("Invalid action.")
 
             action = get_user_action()
         except PhoneDoesNotExist:

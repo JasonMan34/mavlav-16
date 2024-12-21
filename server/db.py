@@ -10,7 +10,7 @@ class Client:
         self.public_key_bytes = public_key_bytes
 
 registered_clients: dict[str, Client] = {}
-messages: dict[str, bytes] = {}
+messages: dict[str, dict[str, list[str]]] = {}
 
 def save_db():
     """Save registered clients and messages to a file."""

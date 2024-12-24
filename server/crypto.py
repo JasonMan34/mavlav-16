@@ -1,11 +1,10 @@
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey, EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric import ec, padding
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
 
-def load_server_private_key() -> RSAPrivateKey:
+def load_server_private_key() -> EllipticCurvePrivateKey:
     with open("server_private_key.pem", "rb") as key_file:
         return load_pem_private_key(key_file.read(), password=None)
     
@@ -18,4 +17,4 @@ def verify_signature(data: bytes, signature: bytes, public_key: EllipticCurvePub
     public_key.verify(signature, data, ec.ECDSA(hashes.SHA256()))
 
 def sign(data: bytes):
-    return server_private_key.sign(data, padding.PKCS1v15(), hashes.SHA256())
+    return server_private_key.sign(data, ec.ECDSA(hashes.SHA256()))

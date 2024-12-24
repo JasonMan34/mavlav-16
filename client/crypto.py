@@ -8,14 +8,18 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key, l
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 import os
 
-def generate_ec_keypair() -> tuple[EllipticCurvePublicKey, EllipticCurvePrivateKey]: 
+def generate_ec_keypair() -> tuple[bytes, bytes]: 
     """
         Generate asymmetric keys pair.
         :return: the public and private keys as a tuple in pem format (bytes)
     """
     private_key = ec.generate_private_key(ec.SECP256R1())
     public_key = private_key.public_key()
-    return public_key, private_key
+    return public_key_to_pem(public_key), private_key_to_pem(private_key)
+
+def get_public_from_private(private_key_bytes: bytes) -> bytes:
+    private_key = load_private_key(private_key_bytes)
+    return public_key_to_pem(private_key.public_key())
 
 def public_key_to_pem(ec_public_key: EllipticCurvePublicKey) -> bytes:
     return ec_public_key.public_bytes(
@@ -86,11 +90,10 @@ def aes_ecb_decrypt(cipher_text: bytes, aes_key: bytes) -> bytes:
     plaintext = unpadder.update(padded_message) + unpadder.finalize()
     return plaintext
 
-def load_server_public_key() -> RSAPublicKey:
-    with open("server_public_key.pem", "rb") as key_file:
-        return load_pem_public_key(key_file.read())
     
-server_public_key = load_server_public_key()
-
 def verify_server_signature(data: bytes, signature: bytes) -> None:
-    server_public_key.verify(signature, data, PKCS1v15(), hashes.SHA256())
+    with open("server_public_key.pem", "rb") as key_file:
+        server_public_key = load_pem_public_key(key_file.read())
+        server_public_key.verify(signature, data, ec.ECDSA(hashes.SHA256()))
+
+

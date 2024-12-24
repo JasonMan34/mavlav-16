@@ -100,7 +100,7 @@ class MessageHandler:
             public_key = load_public_key(public_key_bytes) # We do this first to ensure it's a valid key
             state.digits = None
             state.public_key_bytes = public_key_bytes
-            state.public_key =  public_key
+            state.public_key = public_key
 
             register_client(state.phone_number, public_key_bytes)
         except Exception as e:

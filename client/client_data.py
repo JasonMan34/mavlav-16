@@ -32,7 +32,6 @@ class ClientData:
                     if delimeter != -1:
                         self.phone_number = client_info[:delimeter]
                         self.is_signed_up = client_info[delimeter+1:].strip() == "1"
-                        print(client_info[delimeter+1:].encode())
                     self.private_key_bytes = info_file.read().encode()
                     self.public_key_bytes = get_public_from_private(self.private_key_bytes)
                     

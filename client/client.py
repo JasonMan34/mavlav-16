@@ -41,7 +41,7 @@ def send_request(client_socket: socket.socket, request_type: RequestType, data: 
     """
     
     if request_type in {RequestType.INIT_MESSAGING, RequestType.SEND_MESSAGE}:
-        signature = sign(data, client_data.private_key)
+        signature = sign(data, client_data.private_key_bytes)
         signature_length_bytes = len(signature).to_bytes(1, 'big')
         total_data_length = len(data) + len(signature_length_bytes) + len(signature)
         data_length_bytes = total_data_length.to_bytes(4, 'big')
@@ -139,8 +139,7 @@ def sign_in(conn: socket.socket):
 
     # Handle challenge
     challenge = response_data
-    private_key = load_private_key(client_data.private_key_bytes)
-    signature = sign(challenge, private_key)
+    signature = sign(challenge, client_data.private_key_bytes)
     response_type, response_data = send_request(conn, RequestType.SIGN_IN_CONFIRM, signature)
 
     if response_type == ResponseType.SIGN_IN_SUCCESS:
@@ -162,8 +161,8 @@ def init_messaging(conn: socket.socket, recipient_phone: str):
     return response_data
 
 def get_and_create_crypto_utils(conn: socket.socket, recipient_phone: str):
-    public_key = init_messaging(conn, recipient_phone)
-    shared_secret = create_shared_secret(client_data.private_key_bytes, public_key)
+    public_key_bytes = init_messaging(conn, recipient_phone)
+    shared_secret = create_shared_secret(client_data.private_key_bytes, public_key_bytes)
     logger.debug("Successfully created a shared secret")
     aes_key, iv = create_AES_key()
     logger.debug("Successfully created AES key")

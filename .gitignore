@@ -164,6 +164,5 @@ cython_debug/
 
 
 /~*
-client.data
-client_data.pkl
+client_info.txt
 db.pkl

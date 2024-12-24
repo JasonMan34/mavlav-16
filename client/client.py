@@ -78,6 +78,7 @@ def receive_response(client_socket: socket.socket):
 
 def verify_server_identity(conn: socket.socket) -> None:
     challenge = secrets.token_bytes(32)
+    logger.info("Successfully created secret challenge for server.")
     response_type, response_data = send_request(conn, RequestType.VERIFY_SERVER_IDENTITY, challenge)
     if response_type != ResponseType.SERVER_IDENTITY_VERIFICATION:
         print(f"Unexpected response from server when verifying server identity: {response_type.name}. Exiting.")
@@ -89,7 +90,7 @@ def verify_server_identity(conn: socket.socket) -> None:
         print(f"Failed to verify server identity. Exiting.")
         exit(1)
     
-    logger.info("Successfully verified server identity.")
+    logger.info("Successfully verified server identity using ECDSA.")
 
 def sign_up(conn: socket.socket) -> None:
     # Send SIGN_UP request
@@ -139,7 +140,9 @@ def sign_in(conn: socket.socket):
 
     # Handle challenge
     challenge = response_data
+    logger.info("Successully recieved sign-in challenge from server")
     signature = sign(challenge, client_data.private_key_bytes)
+    logger.info("Successully signed the challenge using EC private key")
     response_type, response_data = send_request(conn, RequestType.SIGN_IN_CONFIRM, signature)
 
     if response_type == ResponseType.SIGN_IN_SUCCESS:

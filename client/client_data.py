@@ -32,29 +32,39 @@ class ClientData:
                     if delimeter != -1:
                         self.phone_number = client_info[:delimeter]
                         self.is_signed_up = client_info[delimeter+1:].strip() == "1"
-                    self.private_key_bytes = info_file.read().encode()
-                    self.public_key_bytes = get_public_from_private(self.private_key_bytes)
-                    
-                    if delimeter == -1 or self.phone_number is None or len(self.phone_number)!=LEN_PHONE_NUM or not self.private_key_bytes:
+
+                    if delimeter == -1 or self.phone_number is None or len(self.phone_number)!=LEN_PHONE_NUM:
                         logger.warning("client.data file is corrupted, creating new client data.")
-                        self.create_new_client()
+                        self.get_phone_number()
+                        self.is_signed_up = False
+
+                    if self.is_signed_up:    
+                        self.private_key_bytes = info_file.read().encode()
+                        self.public_key_bytes = get_public_from_private(self.private_key_bytes)
+                    else:
+                        self.generate_keys()
+                    
                     
                 logger.debug(f"Loaded existing data for phone number {self.phone_number}")
             except Exception as e:
                 logger.error(f"Failed to load client data: {e}")
-                self.create_new_client()
+                self.get_phone_number()
+                self.generate_keys()
         else:
             logger.debug("No existing data found, creating new client data.")
-            self.create_new_client()
+            self.get_phone_number()
+            self.generate_keys()
     
-    def create_new_client(self):
+    def get_phone_number(self):
         """Create a new client and ask the user for necessary information."""
         self.phone_number = input(f"Please enter your phone number ({LEN_PHONE_NUM} digits): ").strip()
         while len(self.phone_number) != LEN_PHONE_NUM or not self.phone_number.isdigit():
             print(f"Invalid phone number. Please enter a {LEN_PHONE_NUM}-digit phone number.")
             self.phone_number = input(f"Please enter your phone number ({LEN_PHONE_NUM} digits): ").strip()
-        
+
+    def generate_keys(self):
         self.public_key_bytes, self.private_key_bytes = generate_ec_keypair()
+        logger.info("Generated EC key pair")
         self.is_signed_up = False
     
     def save_data(self):

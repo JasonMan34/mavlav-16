@@ -160,15 +160,15 @@ def init_messaging(conn: socket.socket, recipient_phone: str):
         logger.warning(f"Unexpected response from server: {response_type.name}")
         raise BadRequest()
 
-    logger.info(f"Successfully received public key of {recipient_phone}")
+    logger.debug(f"Successfully received public key of {recipient_phone}")
     return response_data
 
 def get_and_create_crypto_utils(conn: socket.socket, recipient_phone: str):
     public_key_bytes = init_messaging(conn, recipient_phone)
     shared_secret = create_shared_secret(client_data.private_key_bytes, public_key_bytes)
-    logger.info("Successfully created a shared secret")
+    logger.debug("Successfully created a shared secret")
     aes_key, iv = create_AES_key()
-    logger.info("Successfully created AES key")
+    logger.debug("Successfully created AES key")
     client_data.contacts[recipient_phone] = (shared_secret, aes_key, iv)
 
 def send_msg(conn: socket.socket, recipient_phone: str, message: str):
@@ -179,11 +179,11 @@ def send_msg(conn: socket.socket, recipient_phone: str, message: str):
         get_and_create_crypto_utils(conn, recipient_phone)
 
     shared_secret, aes_key, iv = client_data.contacts[recipient_phone]
-    logger.info("Successfully dumped shared secret, AES key and iv")
+    logger.debug("Successfully dumped shared secret, AES key and iv")
     encrypted_aes_key = aes_ecb_encrypt(aes_key, shared_secret)
-    logger.info("Successfully encrypted AES key for transmission (encrypted using shared secret in ECB mode)")
+    logger.debug("Successfully encrypted AES key for transmission (encrypted using shared secret in ECB mode)")
     encrypted_msg = aes_cbc_encrypt(message.encode(), aes_key, iv)
-    logger.info(f"Successfully encrypted message to send to {recipient_phone} (encrypted using AES key in CBC mode)")
+    logger.debug(f"Successfully encrypted message to send to {recipient_phone} (encrypted using AES key in CBC mode)")
 
     response_type, response_data = send_request(conn, RequestType.SEND_MESSAGE, struct.pack(
         f'>10s48s16s{len(encrypted_msg)}s',

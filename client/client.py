@@ -140,9 +140,9 @@ def sign_in(conn: socket.socket):
 
     # Handle challenge
     challenge = response_data
-    logger.info("Successully recieved sign-in challenge from server")
+    logger.info("Successfully received sign-in challenge from server")
     signature = sign(challenge, client_data.private_key_bytes)
-    logger.info("Successully signed the challenge using EC private key")
+    logger.info("Successfully signed the challenge using EC private key")
     response_type, response_data = send_request(conn, RequestType.SIGN_IN_CONFIRM, signature)
 
     if response_type == ResponseType.SIGN_IN_SUCCESS:
@@ -229,7 +229,7 @@ def get_user_action():
     return input("""
 What would you like to do?
 0 - Send message
-1 - Recieve all messages
+1 - Receive all messages
 2 - Quit
 """).strip()
 

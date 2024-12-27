@@ -28,12 +28,12 @@ class ClientData:
             try:
                 with open(CLIENT_INFO_FILE, "r") as info_file:
                     client_info = info_file.readline()
-                    delimeter = client_info.find(":")
-                    if delimeter != -1:
-                        self.phone_number = client_info[:delimeter]
-                        self.is_signed_up = client_info[delimeter+1:].strip() == "1"
+                    delimiter = client_info.find(":")
+                    if delimiter != -1:
+                        self.phone_number = client_info[:delimiter]
+                        self.is_signed_up = client_info[delimiter+1:].strip() == "1"
 
-                    if delimeter == -1 or self.phone_number is None or len(self.phone_number)!=LEN_PHONE_NUM:
+                    if delimiter == -1 or self.phone_number is None or len(self.phone_number)!=LEN_PHONE_NUM:
                         logger.warning("client.data file is corrupted, creating new client data.")
                         self.get_phone_number()
                         self.is_signed_up = False
